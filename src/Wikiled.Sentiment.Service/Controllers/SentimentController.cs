@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Reactive.Concurrency;
 using System.Reactive.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -34,9 +35,12 @@ namespace Wikiled.Sentiment.Service.Controllers
         public async Task<Document> Parse([FromBody]SingleProcessingData review)
         {
             review.Id = Guid.NewGuid().ToString();
-            var result = reviewSink.ParsedReviews.Select(item => item.Processed).Where(item => item.Id == review.Id).FirstOrDefaultAsync();
+            var result = reviewSink.ParsedReviews
+                .Select(item => item.Processed).Where(item => item.Id == review.Id)
+                .FirstOrDefaultAsync().GetAwaiter();
             reviewSink.AddReview(review);
-            return await result;
+            var document = await result;
+            return document;
         }
 
         [Route("version")]
@@ -48,6 +52,5 @@ namespace Wikiled.Sentiment.Service.Controllers
             logger.LogInformation("Version request: {0}", version);
             return version;
         }
-
     }
 }

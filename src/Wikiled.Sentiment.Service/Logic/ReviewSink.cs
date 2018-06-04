@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Reactive.Subjects;
+using NLog;
 using Wikiled.Common.Arguments;
 using Wikiled.Sentiment.Analysis.Processing.Pipeline;
 using Wikiled.Sentiment.Text.Data.Review;
@@ -9,6 +10,8 @@ namespace Wikiled.Sentiment.Service.Logic
 {
     public class ReviewSink : IReviewSink
     {
+        private static readonly Logger logger = LogManager.GetCurrentClassLogger();
+
         private readonly Subject<IParsedDocumentHolder> reviews = new Subject<IParsedDocumentHolder>();
 
         private readonly ITextSplitter splitter;
@@ -25,11 +28,17 @@ namespace Wikiled.Sentiment.Service.Logic
 
         public void AddReview(SingleProcessingData review)
         {
+            if (review.Date == null)
+            {
+                review.Date = DateTime.Now;
+            }
+
             reviews.OnNext(new ParsingDocumentHolder(splitter, review));
         }
 
         public void Dispose()
         {
+            logger.Debug("Dispose");
             reviews?.Dispose();
         }
     }

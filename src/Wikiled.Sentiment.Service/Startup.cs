@@ -11,8 +11,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NLog;
-using NLog.Extensions.Logging;
-using NLog.Web;
 using Wikiled.Sentiment.Analysis.Processing;
 using Wikiled.Sentiment.Analysis.Processing.Pipeline;
 using Wikiled.Sentiment.Analysis.Processing.Splitters;
@@ -108,7 +106,11 @@ namespace Wikiled.Sentiment.Service
             var cache = new MemoryCache(new MemoryCacheOptions());
             var splitterHelper = new MainSplitterFactory(new LocalCacheFactory(cache), configuration).Create(POSTaggerType.SharpNLP);
             ReviewSink sink = new ReviewSink(splitterHelper.Splitter);
-            ProcessingPipeline pipeline = new ProcessingPipeline(TaskPoolScheduler.Default, splitterHelper, sink.Reviews, new ParsedReviewManagerFactory());
+            ProcessingPipeline pipeline = new ProcessingPipeline(
+                TaskPoolScheduler.Default, 
+                splitterHelper, 
+                sink.Reviews,
+                new ParsedReviewManagerFactory());
             TestingClient client = new TestingClient(pipeline);
             client.TrackArff = false;
 

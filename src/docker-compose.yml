@@ -1,0 +1,8 @@
+version: '3.4'
+
+services:
+  wikiled.sentiment.service:
+    image: ${DOCKER_REGISTRY}wikiledsentimentservice
+    build:
+      context: .
+      dockerfile: Wikiled.Sentiment.Service\Dockerfile
