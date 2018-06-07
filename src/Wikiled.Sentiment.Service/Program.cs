@@ -14,7 +14,7 @@ namespace Wikiled.Sentiment.Service
             var logger = NLogBuilder.ConfigureNLog("nlog.config").GetCurrentClassLogger();
             try
             {
-                logger.Debug("init main");
+                logger.Debug("Init main");
                 BuildWebHost(args).Run();
             }
             catch (Exception ex)

@@ -14,6 +14,7 @@ using NLog;
 using Wikiled.Sentiment.Analysis.Processing;
 using Wikiled.Sentiment.Analysis.Processing.Pipeline;
 using Wikiled.Sentiment.Analysis.Processing.Splitters;
+using Wikiled.Sentiment.Service.Hubs;
 using Wikiled.Sentiment.Service.Logic;
 using Wikiled.Sentiment.Text.NLP;
 using Wikiled.Sentiment.Text.Resources;
@@ -47,15 +48,28 @@ namespace Wikiled.Sentiment.Service
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
         {
+            if(env.IsDevelopment())
+            {
+                app.UseDeveloperExceptionPage();
+            }
+            else
+            {
+                app.UseHsts();
+            }
+
             app.UseCors("CorsPolicy");
-            
-            // add NLog.Web
+            app.UseSignalR((options) =>
+            {
+                options.MapHub<SentimentHub>("/Hubs/Sentiment");
+            });
+            app.UseHttpsRedirection();
             app.UseMvc();
         }
 
         // This method gets called by the runtime. Use this method to add services to the container.
         public IServiceProvider ConfigureServices(IServiceCollection services)
         {
+            services.AddSignalR();
             // Needed to add this section, and....
             services.AddCors(
                 options =>
@@ -69,8 +83,7 @@ namespace Wikiled.Sentiment.Service
                 });
 
             // Add framework services.
-            services.AddMvc(
-                options => { });
+            services.AddMvc(options => { });
 
             // needed to load configuration from appsettings.json
             services.AddOptions();
