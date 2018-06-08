@@ -1,51 +1,38 @@
 from requests import Session
-from signalr import Connection
+from requests.auth import HTTPBasicAuth
+import json
+from websocket import create_connection
 
 with Session() as session:
-    #create a connection
-    connection = Connection("http://localhost:63804", session)
 
-    #get chat hub
-    chat = connection.register_hub('sentiment')
+    # session.auth = HTTPBasicAuth("known", "user")
+    url = "http://localhost:63804/sentiment"
+    ws_url = "ws://localhost:63804/sentiment"
 
-    #start a connection
-    connection.start()
+    url = '{url}/negotiate'.format(url=url)
+    data = {
+        "connectionId": "9gQg9iim9RMRZ7IVIJtDRg",
+        "availableTransports":
+            [
+                {
+                    "transport": "WebSockets",
+                    "transferFormats": ["Text", "Binary"]
+                }
+            ]
+    }
 
-    #create new chat message handler
-    def print_received_message(data):
-        print('received: ', data)
+    negotiate = session.post(url, data)
+    negotiate.raise_for_status()
+    answer = negotiate.json()
+    url = '{url}?id={id}'.format(url=ws_url, id=answer['connectionId'])
 
-    #create new chat topic handler
-    def print_topic(topic, user):
-        print('topic: ', topic, user)
+    ws = create_connection(url, enable_multithread=True)
 
-    #create error handler
-    def print_error(error):
-        print('error: ', error)
-
-    #receive new chat messages from the hub
-    chat.client.on('newMessageReceived', print_received_message)
-
-    #change chat topic
-    chat.client.on('topicChanged', print_topic)
-
-    #process errors
-    connection.error += print_error
-
-    #start connection, optionally can be connection.start()
-    with connection:
-
-        #post new message
-        chat.server.invoke('ping', 'Python is here')
-
-        # #change chat topic
-        # chat.server.invoke('setTopic', 'Welcome python!')
-
-        #invoke server method that throws error
-        chat.server.invoke('requestError')
-
-        #post another message
-        chat.server.invoke('ping', 'Bye-bye!')
-
-        #wait a second before exit
-        connection.wait(1)
+    data ={
+            'H': 'Sentiment',
+            'M': 'Ping',
+            'A': 'Test',
+            'I': 1
+        }
+    ws.send(json.dumps(data))
+    print('hmm...')

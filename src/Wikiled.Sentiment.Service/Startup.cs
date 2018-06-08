@@ -60,7 +60,7 @@ namespace Wikiled.Sentiment.Service
             app.UseCors("CorsPolicy");
             app.UseSignalR((options) =>
             {
-                options.MapHub<SentimentHub>("/Hubs/Sentiment");
+                options.MapHub<SentimentHub>("/Sentiment");
             });
             app.UseHttpsRedirection();
             app.UseMvc();
