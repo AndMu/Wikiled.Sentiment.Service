@@ -150,7 +150,7 @@ namespace Wikiled.Sentiment.Service.Controllers
 
         public string ServerVersion()
         {
-            var version = $"Version: [{Assembly.GetExecutingAssembly().GetName().Version}]]";
+            var version = $"Version: [{Assembly.GetExecutingAssembly().GetName().Version}]";
             logger.LogInformation("Version request: {0}", version);
             return version;
         }
