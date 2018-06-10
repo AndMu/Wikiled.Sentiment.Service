@@ -1,6 +1,8 @@
 FROM microsoft/dotnet:2.1-sdk AS builder
 WORKDIR /source
 
+ARG Version  
+
 COPY *.csproj .
 RUN dotnet restore
 
