@@ -23,7 +23,7 @@ namespace Wikiled.Sentiment.Service.Tests.Logic
         [Test]
         public void Construct()
         {
-            Assert.Throws<ArgumentNullException>(() => new ReviewSink(mockTextSplitter.Object));
+            Assert.Throws<ArgumentNullException>(() => new ReviewSink(null));
         }
 
         private ReviewSink CreateReviewSink()
