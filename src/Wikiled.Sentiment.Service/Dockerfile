@@ -13,5 +13,7 @@ RUN dotnet publish /p:Version=$env:BUILD_VERSION --output /app/ --configuration 
 FROM microsoft/dotnet:2.1-aspnetcore-runtime
 WORKDIR /app
 COPY --from=builder /app .
+ENV ASPNETCORE_ENVIRONMENT Production
+
 ENTRYPOINT ["dotnet", "Wikiled.Sentiment.Service.dll"]
 

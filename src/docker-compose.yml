@@ -1,8 +1,0 @@
-version: "3"
-
-services:     
-  sentimentservice:    
-    build:        
-      context: Wikiled.Sentiment.Service    
-    ports:
-      - "80:80"

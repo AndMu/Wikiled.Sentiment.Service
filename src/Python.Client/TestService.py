@@ -12,7 +12,7 @@ class SentimentAnalysis(object):
     def __iter__(self):
         with Session() as session:
             # session.auth = HTTPBasicAuth("known", "user")
-            url = "http://localhost:63804/api/sentiment/parsestream"
+            url = "http://sentiment.wikiled.com/api/sentiment/parsestream"
             data = {}
             if self.lexicon is not None:
                 data["dictionary"] = self.lexicon
