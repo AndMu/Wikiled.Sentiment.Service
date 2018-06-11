@@ -32,6 +32,9 @@ class SentimentAnalysis(object):
 
 if __name__ == "__main__":
     documents = ['I like this bool']
-    sentiment = SentimentAnalysis(documents)
+    dictionary = {}
+    dictionary['like'] = -1
+    dictionary['BOOL'] = 1
+    sentiment = SentimentAnalysis(documents, dictionary)
     for result in sentiment:
         print(result)

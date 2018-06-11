@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reactive.Linq;
 using System.Reflection;
 using System.Text;
@@ -16,6 +17,7 @@ using Wikiled.Sentiment.Service.Logic.Request;
 using Wikiled.Sentiment.Text.Data.Review;
 using Wikiled.Sentiment.Text.Parser;
 using Wikiled.Sentiment.Text.Sentiment;
+using Wikiled.Sentiment.Text.Structure;
 using Wikiled.Server.Core.ActionFilters;
 using Wikiled.Text.Analysis.Structure;
 
@@ -30,6 +32,8 @@ namespace Wikiled.Sentiment.Service.Controllers
         private readonly IReviewSink reviewSink;
 
         private TestingClient client;
+
+        private IDocumentFromReviewFactory parsedFactory = new DocumentFromReviewFactory();
 
         public SentimentController(ILogger<SentimentController> logger, IReviewSink reviewSink, TestingClient client)
         {
@@ -63,10 +67,7 @@ namespace Wikiled.Sentiment.Service.Controllers
                 ISentimentDataHolder loader = default;
                 if (request.Dictionary != null)
                 {
-                    foreach (var item in request.Dictionary)
-                    {
-                        loader = SentimentDataHolder.Load(new[] { new WordSentimentValueData(item.Key, new SentimentValueData(item.Value)) });
-                    }
+                    loader = SentimentDataHolder.Load(request.Dictionary.Select(item => new WordSentimentValueData(item.Key, new SentimentValueData(item.Value))));
                 }
 
                 Dictionary<string, SingleProcessingData> documentTable = new Dictionary<string, SingleProcessingData>();
@@ -108,7 +109,7 @@ namespace Wikiled.Sentiment.Service.Controllers
                     {
                         LexiconRatingAdjustment adjustment = new LexiconRatingAdjustment(item.Review, loader);
                         adjustment.CalculateRating();
-                        return item.Review.GenerateDocument(adjustment);
+                        return parsedFactory.ReparseDocument(adjustment);
                     }
 
                     return item.Processed;
