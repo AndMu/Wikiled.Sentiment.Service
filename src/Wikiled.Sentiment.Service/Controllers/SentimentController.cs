@@ -86,25 +86,12 @@ namespace Wikiled.Sentiment.Service.Controllers
                 AsyncCountdownEvent count = new AsyncCountdownEvent(request.Documents.Length);
                 var task = ProcessList(data, loader, count);
 
-                StringBuilder response = new StringBuilder();
-                response.AppendLine("{");
-                response.AppendLine($"\"Total\": {request.Documents.Length},");
-                response.AppendLine("\"Documents\": [");
-                var buffer = Encoding.UTF8.GetBytes(response.ToString());
-                Response.Body.Write(buffer, 0, buffer.Length);
-
                 foreach (var document in request.Documents)
                 {
                     reviewSink.AddReview(document);
                 }
 
                 await Task.WhenAny(task, count.WaitAsync());
-
-                response = new StringBuilder();
-                response.AppendLine("]");
-                response.AppendLine("}");
-                buffer = Encoding.UTF8.GetBytes(response.ToString());
-                Response.Body.Write(buffer, 0, buffer.Length);
             }
             catch (Exception ex)
             {
@@ -135,7 +122,7 @@ namespace Wikiled.Sentiment.Service.Controllers
                                 lock (Response.Body)
                                 {
                                     Response.Body.Write(buffer, 0, buffer.Length);
-                                    byte[] newline = Encoding.UTF8.GetBytes(count.CurrentCount > 1 ? "," : string.Empty + Environment.NewLine);
+                                    byte[] newline = Encoding.UTF8.GetBytes(Environment.NewLine);
                                     Response.Body.Write(newline, 0, newline.Length);
                                 }
 
