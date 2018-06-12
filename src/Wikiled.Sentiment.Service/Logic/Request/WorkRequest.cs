@@ -12,5 +12,7 @@ namespace Wikiled.Sentiment.Service.Logic.Request
 
         [Required]
         public SingleProcessingData[] Documents { get; set; }
+
+        public bool CleanText { get; set; }
     }
 }

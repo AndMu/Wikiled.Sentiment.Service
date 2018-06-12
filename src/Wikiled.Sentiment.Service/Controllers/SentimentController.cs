@@ -20,6 +20,7 @@ using Wikiled.Sentiment.Text.Sentiment;
 using Wikiled.Sentiment.Text.Structure;
 using Wikiled.Server.Core.ActionFilters;
 using Wikiled.Text.Analysis.Structure;
+using Wikiled.Text.Analysis.Twitter;
 
 namespace Wikiled.Sentiment.Service.Controllers
 {
@@ -33,7 +34,7 @@ namespace Wikiled.Sentiment.Service.Controllers
 
         private TestingClient client;
 
-        private IDocumentFromReviewFactory parsedFactory = new DocumentFromReviewFactory();
+        private readonly IDocumentFromReviewFactory parsedFactory = new DocumentFromReviewFactory();
 
         public SentimentController(ILogger<SentimentController> logger, IReviewSink reviewSink, TestingClient client)
         {
@@ -51,7 +52,7 @@ namespace Wikiled.Sentiment.Service.Controllers
             var result = reviewSink.ParsedReviews
                 .Select(item => item.Processed).Where(item => item.Id == review.Id)
                 .FirstOrDefaultAsync().GetAwaiter();
-            reviewSink.AddReview(review);
+            reviewSink.AddReview(review, false);
             var document = await result;
             return document;
         }
@@ -89,7 +90,7 @@ namespace Wikiled.Sentiment.Service.Controllers
 
                 foreach (var document in request.Documents)
                 {
-                    reviewSink.AddReview(document);
+                    reviewSink.AddReview(document, request.CleanText);
                 }
 
                 await Task.WhenAny(task, count.WaitAsync());

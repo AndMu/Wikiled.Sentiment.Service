@@ -10,6 +10,6 @@ namespace Wikiled.Sentiment.Service.Logic
 
         IObservable<ProcessingContext> ParsedReviews { get; }
 
-        void AddReview(SingleProcessingData review);
+        void AddReview(SingleProcessingData review, bool doCleanup);
     }
 }
