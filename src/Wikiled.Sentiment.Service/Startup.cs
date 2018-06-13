@@ -18,6 +18,7 @@ using Wikiled.Sentiment.Service.Hubs;
 using Wikiled.Sentiment.Service.Logic;
 using Wikiled.Sentiment.Text.NLP;
 using Wikiled.Sentiment.Text.Resources;
+using Wikiled.Server.Core.Helpers;
 using Wikiled.Text.Analysis.Cache;
 using Wikiled.Text.Analysis.POS;
 
@@ -96,6 +97,11 @@ namespace Wikiled.Sentiment.Service
             logger.Info("Ready!");
             // Create the IServiceProvider based on the container.
             return new AutofacServiceProvider(appContainer);
+        }
+
+        private void SetupOther(ContainerBuilder builder)
+        {
+            builder.RegisterType<IpResolve>().As<IIpResolve>();
         }
 
         private void SetupTestClient(ContainerBuilder builder)

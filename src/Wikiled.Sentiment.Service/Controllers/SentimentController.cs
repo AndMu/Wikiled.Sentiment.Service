@@ -19,8 +19,8 @@ using Wikiled.Sentiment.Text.Parser;
 using Wikiled.Sentiment.Text.Sentiment;
 using Wikiled.Sentiment.Text.Structure;
 using Wikiled.Server.Core.ActionFilters;
+using Wikiled.Server.Core.Helpers;
 using Wikiled.Text.Analysis.Structure;
-using Wikiled.Text.Analysis.Twitter;
 
 namespace Wikiled.Sentiment.Service.Controllers
 {
@@ -34,20 +34,33 @@ namespace Wikiled.Sentiment.Service.Controllers
 
         private TestingClient client;
 
+        private readonly IIpResolve resolve;
+
         private readonly IDocumentFromReviewFactory parsedFactory = new DocumentFromReviewFactory();
 
-        public SentimentController(ILogger<SentimentController> logger, IReviewSink reviewSink, TestingClient client)
+        public SentimentController(ILogger<SentimentController> logger, IReviewSink reviewSink, TestingClient client, IIpResolve resolve)
         {
             Guard.NotNull(() => reviewSink, reviewSink);
+            Guard.NotNull(() => client, client);
+            Guard.NotNull(() => resolve, resolve);
             this.reviewSink = reviewSink;
             this.client = client;
+            this.resolve = resolve;
             this.logger = logger;
+        }
+
+        [Route("domains")]
+        [HttpGet]
+        public async Task<string[]> SupportedDomains()
+        {
+            return new[] { string.Empty };
         }
 
         [Route("parse")]
         [HttpPost]
         public async Task<Document> Parse([FromBody]SingleProcessingData review)
         {
+            logger.LogInformation("Parse [{0}]", resolve.GetRequestIp());
             review.Id = Guid.NewGuid().ToString();
             var result = reviewSink.ParsedReviews
                 .Select(item => item.Processed).Where(item => item.Id == review.Id)
@@ -61,8 +74,8 @@ namespace Wikiled.Sentiment.Service.Controllers
         [Route("parsestream")]
         public async Task GetStream([FromBody] WorkRequest request)
         {
+            logger.LogInformation("GetStream [{0}] with <{1}> documents", resolve.GetRequestIp(), request?.Documents?.Length);
             Response.ContentType = "application/json";
-
             try
             {
                 ISentimentDataHolder loader = default;
