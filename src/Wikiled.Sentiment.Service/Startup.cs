@@ -38,7 +38,7 @@ namespace Wikiled.Sentiment.Service
             Configuration = builder.Build();
             Env = env;
             LogManager.Configuration.Variables["logDirectory"] = Configuration.GetSection("logging").GetValue<string>("path");
-            logger.Debug($"Starting: {Assembly.GetExecutingAssembly().GetName().Version}");
+            logger.Info($"Starting: {Assembly.GetExecutingAssembly().GetName().Version}");
         }
 
         public IConfigurationRoot Configuration { get; }
@@ -90,6 +90,7 @@ namespace Wikiled.Sentiment.Service
 
             // Create the container builder.
             var builder = new ContainerBuilder();
+            SetupOther(builder);
             SetupTestClient(builder);
             builder.Populate(services);
             var appContainer = builder.Build();
