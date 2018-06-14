@@ -5,10 +5,22 @@ from requests import Session
 
 class SentimentAnalysis(object):
 
-    def __init__(self, documents, lexicon=None, clean=False):
+    def __init__(self, documents, lexicon=None, domain=None, clean=False):
         self.lexicon = lexicon
         self.documents = documents
         self.clean = clean
+        self.domain = domain
+        self.__load__()
+        
+        if domain is not None and domain.lower() not in [x.lower() for x in self.supported_domains]:
+            raise ValueError("Not supported domain:" + domain)
+
+    def __load__(self):
+        with Session() as session:
+            url = "http://sentiment.wikiled.com/api/sentiment/version"
+            self.version = session.get(url).content
+            url = "http://sentiment.wikiled.com/api/sentiment/domains"
+            self.supported_domains = json.loads(session.get(url).content)
 
     def __iter__(self):
         with Session() as session:
@@ -17,6 +29,8 @@ class SentimentAnalysis(object):
             data['CleanText'] = self.clean
             if self.lexicon is not None:
                 data['dictionary'] = self.lexicon
+            if self.domain is not None:
+                data['domain'] = self.domain
             request_documents = []
             for document in self.documents:
                 request_documents.append({'text': document})
@@ -32,7 +46,7 @@ class SentimentAnalysis(object):
 
 
 if __name__ == "__main__":
-    documents = ['I like this bool :)']
+    documents = ['I like this bool :)', 'short it baby']
     # with standard lexicon
     sentiment = SentimentAnalysis(documents)
     for result in sentiment:
@@ -43,6 +57,11 @@ if __name__ == "__main__":
     dictionary['BOOL'] = 1
 
     # with custom lexicon and Twitter type cleaning
-    sentiment = SentimentAnalysis(documents, dictionary, True)
+    sentiment = SentimentAnalysis(documents, dictionary, clean=True)
     for result in sentiment:
         print(result)
+
+    sentiment = SentimentAnalysis(documents, domain='TwitterMarket')
+    for result in sentiment:
+        print(result)
+        
