@@ -2,6 +2,7 @@
 using System.IO;
 using System.Reactive.Concurrency;
 using System.Reflection;
+using System.Threading.Tasks;
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Builder;
@@ -11,7 +12,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NLog;
-using NLog.Web;
 using Wikiled.Sentiment.Analysis.Processing;
 using Wikiled.Sentiment.Analysis.Processing.Pipeline;
 using Wikiled.Sentiment.Analysis.Processing.Splitters;
@@ -92,8 +92,8 @@ namespace Wikiled.Sentiment.Service
 
             // Create the container builder.
             var builder = new ContainerBuilder();
-            SetupOther(builder);
             SetupTestClient(builder);
+            SetupOther(builder);
             builder.Populate(services);
             var appContainer = builder.Build();
 
@@ -111,19 +111,21 @@ namespace Wikiled.Sentiment.Service
         {
             var configuration = new ConfigurationHandler();
             configuration.SetConfiguration("resources", "resources");
+            configuration.SetConfiguration("lexicons", "lexicons");
             configuration.StartingLocation = Env.ContentRootPath;
             var resourcesPath = configuration.ResolvePath("Resources");
+
             var url = Configuration["sentiment:resources"];
-            if (Directory.Exists(resourcesPath))
-            {
-                logger.Info("Resources folder {0} found.", resourcesPath);
-            }
-            else
-            {
-                DataDownloader dataDownloader = new DataDownloader();
-                var task = dataDownloader.DownloadFile(new Uri(url), resourcesPath);
-                task.Wait();
-            }
+            var urlLexicons = Configuration["sentiment:lexicons"];
+            var path = configuration.ResolvePath("lexicons");
+            Task.WhenAll(
+                DownloadResources(resourcesPath, url),
+                Downloadlexicons(path, urlLexicons))
+                .Wait();
+
+            LexiconLoader loader = new LexiconLoader();
+            loader.Load(path);
+            builder.RegisterInstance(loader).As<ILexiconLoader>();
 
             logger.Info("Loading splitter...");
             var cache = new MemoryCache(new MemoryCacheOptions());
@@ -144,6 +146,34 @@ namespace Wikiled.Sentiment.Service
             builder.RegisterInstance(sink)
                    .As<IReviewSink>()
                    .SingleInstance();
+        }
+
+        private static Task DownloadResources(string resourcesPath, string url)
+        {
+            logger.Info("Setup resources - {0} from {1}", resourcesPath, url);
+            if (Directory.Exists(resourcesPath))
+            {
+                logger.Info("Resources folder {0} found.", resourcesPath);
+                return Task.CompletedTask;
+            }
+            else
+            {
+                DataDownloader dataDownloader = new DataDownloader();
+                return dataDownloader.DownloadFile(new Uri(url), resourcesPath);
+            }
+        }
+
+        private static Task Downloadlexicons(string path, string url)
+        {
+            logger.Info("Setup lexicons - {0} from {1}", path, url);
+            if (Directory.Exists(path))
+            {
+                logger.Info("Removing old lexicon folder - {0}", path);
+                Directory.Delete(path);
+            }
+
+            DataDownloader dataDownloader = new DataDownloader();
+            return dataDownloader.DownloadFile(new Uri(url), path);
         }
 
         private void ReconfigureLogging()

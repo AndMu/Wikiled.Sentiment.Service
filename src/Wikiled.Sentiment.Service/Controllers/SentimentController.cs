@@ -34,26 +34,31 @@ namespace Wikiled.Sentiment.Service.Controllers
 
         private TestingClient client;
 
+        private readonly ILexiconLoader lexiconLoader;
+
         private readonly IIpResolve resolve;
 
         private readonly IDocumentFromReviewFactory parsedFactory = new DocumentFromReviewFactory();
 
-        public SentimentController(ILogger<SentimentController> logger, IReviewSink reviewSink, TestingClient client, IIpResolve resolve)
+        public SentimentController(ILogger<SentimentController> logger, IReviewSink reviewSink, TestingClient client, IIpResolve resolve, ILexiconLoader lexiconLoader)
         {
             Guard.NotNull(() => reviewSink, reviewSink);
             Guard.NotNull(() => client, client);
             Guard.NotNull(() => resolve, resolve);
+            Guard.NotNull(() => lexiconLoader, lexiconLoader);
+
             this.reviewSink = reviewSink;
             this.client = client;
             this.resolve = resolve;
+            this.lexiconLoader = lexiconLoader;
             this.logger = logger;
         }
 
         [Route("domains")]
         [HttpGet]
-        public async Task<string[]> SupportedDomains()
+        public string[] SupportedDomains()
         {
-            return new[] { string.Empty };
+            return lexiconLoader.Supported.ToArray();
         }
 
         [Route("parse")]
@@ -81,7 +86,13 @@ namespace Wikiled.Sentiment.Service.Controllers
                 ISentimentDataHolder loader = default;
                 if (request.Dictionary != null)
                 {
+                    logger.LogInformation("Creating custom dictionary with {0} words", request.Dictionary.Count);
                     loader = SentimentDataHolder.Load(request.Dictionary.Select(item => new WordSentimentValueData(item.Key, new SentimentValueData(item.Value))));
+                }
+                else if (!string.IsNullOrEmpty(request.Domain))
+                {
+                    logger.LogInformation("Using Domain dictionary [{0}]", request.Domain);
+                    loader = lexiconLoader.GetLexicon(request.Domain);
                 }
 
                 Dictionary<string, SingleProcessingData> documentTable = new Dictionary<string, SingleProcessingData>();
