@@ -11,6 +11,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NLog;
+using NLog.Web;
 using Wikiled.Sentiment.Analysis.Processing;
 using Wikiled.Sentiment.Analysis.Processing.Pipeline;
 using Wikiled.Sentiment.Analysis.Processing.Splitters;
@@ -21,6 +22,7 @@ using Wikiled.Sentiment.Text.Resources;
 using Wikiled.Server.Core.Helpers;
 using Wikiled.Text.Analysis.Cache;
 using Wikiled.Text.Analysis.POS;
+using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
 namespace Wikiled.Sentiment.Service
 {
@@ -37,7 +39,7 @@ namespace Wikiled.Sentiment.Service
                 .AddEnvironmentVariables();
             Configuration = builder.Build();
             Env = env;
-            LogManager.Configuration.Variables["logDirectory"] = Configuration.GetSection("logging").GetValue<string>("path");
+            ReconfigureLogging();
             logger.Info($"Starting: {Assembly.GetExecutingAssembly().GetName().Version}");
         }
 
@@ -48,7 +50,7 @@ namespace Wikiled.Sentiment.Service
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
         {
-            if(env.IsDevelopment())
+            if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
             }
@@ -128,8 +130,8 @@ namespace Wikiled.Sentiment.Service
             var splitterHelper = new MainSplitterFactory(new LocalCacheFactory(cache), configuration).Create(POSTaggerType.SharpNLP);
             ReviewSink sink = new ReviewSink(splitterHelper.Splitter);
             ProcessingPipeline pipeline = new ProcessingPipeline(
-                TaskPoolScheduler.Default, 
-                splitterHelper, 
+                TaskPoolScheduler.Default,
+                splitterHelper,
                 sink.Reviews,
                 new ParsedReviewManagerFactory());
             TestingClient client = new TestingClient(pipeline);
@@ -142,6 +144,42 @@ namespace Wikiled.Sentiment.Service
             builder.RegisterInstance(sink)
                    .As<IReviewSink>()
                    .SingleInstance();
+        }
+
+        private void ReconfigureLogging()
+        {
+            // manually refresh of NLog configuration
+            // as it is not picking up global
+            LogManager.Configuration.Variables["logDirectory"] =
+                Configuration.GetSection("logging").GetValue<string>("path");
+
+            var logLevel = Configuration.GetValue<LogLevel>("Logging:LogLevel:Default");
+            switch (logLevel)
+            {
+                case LogLevel.Trace:
+                    LogManager.GlobalThreshold = NLog.LogLevel.Trace;
+                    break;
+                case LogLevel.Debug:
+                    LogManager.GlobalThreshold = NLog.LogLevel.Debug;
+                    break;
+                case LogLevel.Information:
+                    LogManager.GlobalThreshold = NLog.LogLevel.Info;
+                    break;
+                case LogLevel.Warning:
+                    LogManager.GlobalThreshold = NLog.LogLevel.Warn;
+                    break;
+                case LogLevel.Error:
+                    LogManager.GlobalThreshold = NLog.LogLevel.Error;
+                    break;
+                case LogLevel.Critical:
+                    LogManager.GlobalThreshold = NLog.LogLevel.Fatal;
+                    break;
+                case LogLevel.None:
+                    LogManager.GlobalThreshold = NLog.LogLevel.Off;
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
         }
     }
 }
