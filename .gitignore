@@ -260,3 +260,4 @@ paket-files/
 __pycache__/
 *.pyc
 /src/Wikiled.Sentiment.Service/resources
+/src/Wikiled.Sentiment.Service/lexicons
