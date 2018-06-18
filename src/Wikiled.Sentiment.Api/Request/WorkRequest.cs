@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 using Newtonsoft.Json;
 using Wikiled.Sentiment.Text.Data.Review;
 
-namespace Wikiled.Sentiment.Service.Logic.Request
+namespace Wikiled.Sentiment.Api.Request
 {
     public class WorkRequest
     {
