@@ -2,10 +2,6 @@ FROM microsoft/dotnet:2.1-sdk AS builder
 ARG BUILD_VERSION  
 WORKDIR /source
 
-COPY *.csproj .
-RUN dotnet restore
-
-# copies the rest of your code
 COPY . .
 RUN dotnet publish /p:Version=$env:BUILD_VERSION --output /app/ --configuration Release
 
