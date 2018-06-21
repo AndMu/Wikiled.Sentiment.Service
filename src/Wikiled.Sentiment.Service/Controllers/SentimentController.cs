@@ -122,6 +122,7 @@ namespace Wikiled.Sentiment.Service.Controllers
             catch (Exception ex)
             {
                 logger.LogError(ex, "Failed");
+                throw;
             }
         }
 
