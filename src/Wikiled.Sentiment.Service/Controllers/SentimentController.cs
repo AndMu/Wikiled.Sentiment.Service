@@ -28,19 +28,24 @@ namespace Wikiled.Sentiment.Service.Controllers
     [TypeFilter(typeof(RequestValidationAttribute))]
     public class SentimentController : Controller
     {
+        private readonly ILexiconLoader lexiconLoader;
+
         private readonly ILogger<SentimentController> logger;
+
+        private readonly IDocumentFromReviewFactory parsedFactory = new DocumentFromReviewFactory();
+
+        private readonly IIpResolve resolve;
 
         private readonly IReviewSink reviewSink;
 
         private TestingClient client;
 
-        private readonly ILexiconLoader lexiconLoader;
-
-        private readonly IIpResolve resolve;
-
-        private readonly IDocumentFromReviewFactory parsedFactory = new DocumentFromReviewFactory();
-
-        public SentimentController(ILogger<SentimentController> logger, IReviewSink reviewSink, TestingClient client, IIpResolve resolve, ILexiconLoader lexiconLoader)
+        public SentimentController(
+            ILogger<SentimentController> logger, 
+            IReviewSink reviewSink, 
+            TestingClient client,
+            IIpResolve resolve, 
+            ILexiconLoader lexiconLoader)
         {
             Guard.NotNull(() => reviewSink, reviewSink);
             Guard.NotNull(() => client, client);
@@ -54,6 +59,15 @@ namespace Wikiled.Sentiment.Service.Controllers
             this.logger = logger;
         }
 
+        [Route("version")]
+        [HttpGet]
+        public string ServerVersion()
+        {
+            var version = $"Version: [{Assembly.GetExecutingAssembly().GetName().Version}]";
+            logger.LogInformation("Version request: {0}", version);
+            return version;
+        }
+
         [Route("domains")]
         [HttpGet]
         public string[] SupportedDomains()
@@ -63,7 +77,7 @@ namespace Wikiled.Sentiment.Service.Controllers
 
         [Route("parse")]
         [HttpPost]
-        public async Task<Document> Parse([FromBody]SingleProcessingData review)
+        public async Task<Document> Parse([FromBody] SingleProcessingData review)
         {
             logger.LogInformation("Parse [{0}]", resolve.GetRequestIp());
             review.Id = Guid.NewGuid().ToString();
@@ -79,61 +93,52 @@ namespace Wikiled.Sentiment.Service.Controllers
         [Route("parsestream")]
         public async Task GetStream([FromBody] WorkRequest request)
         {
-            logger.LogInformation("GetStream [{0}] with <{1}> documents", resolve.GetRequestIp(), request?.Documents?.Length);
+            logger.LogInformation("GetStream [{0}] with <{1}> documents", resolve.GetRequestIp(),
+                request?.Documents?.Length);
             Response.ContentType = "application/json";
-            try
+
+            ISentimentDataHolder loader = default;
+            if (request.Dictionary != null)
             {
-                ISentimentDataHolder loader = default;
-                if (request.Dictionary != null)
-                {
-                    logger.LogInformation("Creating custom dictionary with {0} words", request.Dictionary.Count);
-                    loader = SentimentDataHolder.Load(request.Dictionary.Select(item => new WordSentimentValueData(item.Key, new SentimentValueData(item.Value))));
-                }
-                else if (!string.IsNullOrEmpty(request.Domain))
-                {
-                    logger.LogInformation("Using Domain dictionary [{0}]", request.Domain);
-                    loader = lexiconLoader.GetLexicon(request.Domain);
-                }
-
-                Dictionary<string, SingleProcessingData> documentTable = new Dictionary<string, SingleProcessingData>();
-
-                foreach (var document in request.Documents)
-                {
-                    if (document.Id == null ||
-                        documentTable.ContainsKey(document.Id))
-                    {
-                        document.Id = Guid.NewGuid().ToString();
-                    }
-
-                    documentTable[document.Id] = document;
-                }
-
-                var data = reviewSink.ParsedReviews.Where(item => documentTable.ContainsKey(item.Processed.Id));
-                AsyncCountdownEvent count = new AsyncCountdownEvent(request.Documents.Length);
-                var task = ProcessList(data, loader, count);
-
-                foreach (var document in request.Documents)
-                {
-                    reviewSink.AddReview(document, request.CleanText);
-                }
-
-                await Task.WhenAny(task, count.WaitAsync());
+                logger.LogInformation("Creating custom dictionary with {0} words", request.Dictionary.Count);
+                loader = SentimentDataHolder.Load(request.Dictionary.Select(item =>
+                    new WordSentimentValueData(item.Key, new SentimentValueData(item.Value))));
             }
-            catch (Exception ex)
+            else if (!string.IsNullOrEmpty(request.Domain))
             {
-                logger.LogError(ex, "Failed");
-                throw;
+                logger.LogInformation("Using Domain dictionary [{0}]", request.Domain);
+                loader = lexiconLoader.GetLexicon(request.Domain);
             }
+
+            var documentTable = new Dictionary<string, SingleProcessingData>();
+
+            foreach (var document in request.Documents)
+            {
+                if (document.Id == null ||
+                    documentTable.ContainsKey(document.Id))
+                    document.Id = Guid.NewGuid().ToString();
+
+                documentTable[document.Id] = document;
+            }
+
+            var data = reviewSink.ParsedReviews.Where(item => documentTable.ContainsKey(item.Processed.Id));
+            var count = new AsyncCountdownEvent(request.Documents.Length);
+            var task = ProcessList(data, loader, count);
+
+            foreach (var document in request.Documents) reviewSink.AddReview(document, request.CleanText);
+
+            await Task.WhenAny(task, count.WaitAsync());
         }
 
-        private async Task ProcessList(IObservable<ProcessingContext> data, ISentimentDataHolder loader, AsyncCountdownEvent count)
+        private async Task ProcessList(IObservable<ProcessingContext> data, ISentimentDataHolder loader,
+            AsyncCountdownEvent count)
         {
             var result = data.Select(
                 item =>
                 {
                     if (loader != default)
                     {
-                        LexiconRatingAdjustment adjustment = new LexiconRatingAdjustment(item.Review, loader);
+                        var adjustment = new LexiconRatingAdjustment(item.Review, loader);
                         adjustment.CalculateRating();
                         return parsedFactory.ReparseDocument(adjustment);
                     }
@@ -142,31 +147,21 @@ namespace Wikiled.Sentiment.Service.Controllers
                 });
 
             await result.Select(
-                            item =>
-                            {
-                                var str = JsonConvert.SerializeObject(item);
-                                var buffer = Encoding.UTF8.GetBytes(str);
-                                lock (Response.Body)
-                                {
-                                    Response.Body.Write(buffer, 0, buffer.Length);
-                                    byte[] newline = Encoding.UTF8.GetBytes(Environment.NewLine);
-                                    Response.Body.Write(newline, 0, newline.Length);
-                                }
+                    item =>
+                    {
+                        var str = JsonConvert.SerializeObject(item);
+                        var buffer = Encoding.UTF8.GetBytes(str);
+                        lock (Response.Body)
+                        {
+                            Response.Body.Write(buffer, 0, buffer.Length);
+                            var newline = Encoding.UTF8.GetBytes(Environment.NewLine);
+                            Response.Body.Write(newline, 0, newline.Length);
+                        }
 
-                                count.Signal();
-                                return item;
-                            })
-                        .LastOrDefaultAsync();
-        }
-
-        [Route("version")]
-        [HttpGet]
-
-        public string ServerVersion()
-        {
-            var version = $"Version: [{Assembly.GetExecutingAssembly().GetName().Version}]";
-            logger.LogInformation("Version request: {0}", version);
-            return version;
+                        count.Signal();
+                        return item;
+                    })
+                .LastOrDefaultAsync();
         }
     }
 }
