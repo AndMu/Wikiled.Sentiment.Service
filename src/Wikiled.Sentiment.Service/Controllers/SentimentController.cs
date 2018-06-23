@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Nito.AsyncEx;
 using Wikiled.Common.Arguments;
+using Wikiled.Common.Logging;
 using Wikiled.Sentiment.Analysis.Processing;
 using Wikiled.Sentiment.Analysis.Processing.Pipeline;
 using Wikiled.Sentiment.Api.Request;
@@ -81,43 +82,58 @@ namespace Wikiled.Sentiment.Service.Controllers
         {
             logger.LogInformation("GetStream [{0}] with <{1}> documents", resolve.GetRequestIp(), request?.Documents?.Length);
             Response.ContentType = "application/json";
+            if (request?.Documents == null)
+            {
+                return;
+            }
+
+            if (request.Documents.Length > 500)
+            {
+                throw new Exception("Too many documents. Maximum is 500");
+            }
+
+            var monitor = new PerformanceMonitor(request.Documents.Length);
             try
             {
-                ISentimentDataHolder loader = default;
-                if (request.Dictionary != null)
+                using (Observable.Interval(TimeSpan.FromSeconds(30)).Subscribe(item => logger.LogInformation(monitor.ToString())))
                 {
-                    logger.LogInformation("Creating custom dictionary with {0} words", request.Dictionary.Count);
-                    loader = SentimentDataHolder.Load(request.Dictionary.Select(item => new WordSentimentValueData(item.Key, new SentimentValueData(item.Value))));
-                }
-                else if (!string.IsNullOrEmpty(request.Domain))
-                {
-                    logger.LogInformation("Using Domain dictionary [{0}]", request.Domain);
-                    loader = lexiconLoader.GetLexicon(request.Domain);
-                }
 
-                Dictionary<string, SingleProcessingData> documentTable = new Dictionary<string, SingleProcessingData>();
-
-                foreach (var document in request.Documents)
-                {
-                    if (document.Id == null ||
-                        documentTable.ContainsKey(document.Id))
+                    ISentimentDataHolder loader = default;
+                    if (request.Dictionary != null)
                     {
-                        document.Id = Guid.NewGuid().ToString();
+                        logger.LogInformation("Creating custom dictionary with {0} words", request.Dictionary.Count);
+                        loader = SentimentDataHolder.Load(request.Dictionary.Select(item => new WordSentimentValueData(item.Key, new SentimentValueData(item.Value))));
+                    }
+                    else if (!string.IsNullOrEmpty(request.Domain))
+                    {
+                        logger.LogInformation("Using Domain dictionary [{0}]", request.Domain);
+                        loader = lexiconLoader.GetLexicon(request.Domain);
                     }
 
-                    documentTable[document.Id] = document;
+                    Dictionary<string, SingleProcessingData> documentTable = new Dictionary<string, SingleProcessingData>();
+
+                    foreach (var document in request.Documents)
+                    {
+                        if (document.Id == null ||
+                            documentTable.ContainsKey(document.Id))
+                        {
+                            document.Id = Guid.NewGuid().ToString();
+                        }
+
+                        documentTable[document.Id] = document;
+                    }
+
+                    var data = reviewSink.ParsedReviews.Where(item => documentTable.ContainsKey(item.Processed.Id));
+                    AsyncCountdownEvent count = new AsyncCountdownEvent(request.Documents.Length);
+                    var task = ProcessList(data, loader, count);
+
+                    foreach (var document in request.Documents)
+                    {
+                        reviewSink.AddReview(document, request.CleanText);
+                    }
+
+                    await Task.WhenAny(task, count.WaitAsync());
                 }
-
-                var data = reviewSink.ParsedReviews.Where(item => documentTable.ContainsKey(item.Processed.Id));
-                AsyncCountdownEvent count = new AsyncCountdownEvent(request.Documents.Length);
-                var task = ProcessList(data, loader, count);
-
-                foreach (var document in request.Documents)
-                {
-                    reviewSink.AddReview(document, request.CleanText);
-                }
-
-                await Task.WhenAny(task, count.WaitAsync());
             }
             catch (Exception ex)
             {

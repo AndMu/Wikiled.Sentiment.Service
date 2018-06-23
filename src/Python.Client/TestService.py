@@ -1,6 +1,8 @@
 import json
-
+import uuid
+import csv
 from requests import Session
+from sklearn import metrics
 
 
 class SentimentAnalysis(object):
@@ -32,8 +34,13 @@ class SentimentAnalysis(object):
             if self.domain is not None:
                 data['domain'] = self.domain
             request_documents = []
+            index = 0
+            processed_ids = {}
             for document in self.documents:
-                request_documents.append({'text': document})
+                id = str(uuid.uuid4())
+                request_documents.append({'text': document, 'id': id})
+                processed_ids[id] = index
+                index += 1
             data['documents'] = request_documents
             json_object = json.dumps(data, indent=2)
             headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
@@ -42,26 +49,59 @@ class SentimentAnalysis(object):
                     # filter out keep-alive new lines
                     if line:
                         decoded_line = line.decode('utf-8')
-                        yield json.loads(decoded_line)
+                        sentimen_result = json.loads(decoded_line)
+                        sentiment_class = 0
+                        if sentimen_result['Stars'] is not None:
+                            if sentimen_result['Stars'] > 3:
+                                sentiment_class = 1
+                            else:
+                                sentiment_class = -1
+                        id = processed_ids[sentimen_result['Id']]
+                        yield (id, sentiment_class, sentimen_result)
 
 
 if __name__ == "__main__":
-    documents = ['I like this bool :)', 'short it baby']
-    # with standard lexicon
-    sentiment = SentimentAnalysis(documents)
-    for result in sentiment:
-        print(result)
+    # documents = ['I like this bool :)', 'short it baby']
+    # # with standard lexicon
+    # sentiment = SentimentAnalysis(documents)
+    # for result in sentiment:
+    #     print(result)
+    #
+    # dictionary = {}
+    # dictionary['like'] = -1
+    # dictionary['BOOL'] = 1
+    #
+    # # with custom lexicon and Twitter type cleaning
+    # sentiment = SentimentAnalysis(documents, dictionary, clean=True)
+    # for result in sentiment:
+    #     print(result)
 
-    dictionary = {}
-    dictionary['like'] = -1
-    dictionary['BOOL'] = 1
+    row_id = 0
+    documents = []
+    sentiments = []
+    with open('g:/DataSets/Dataset.Market/laballed_twt_sample.csv', encoding='utf8') as file:
+        reader = csv.reader(file)
+        for row in reader:
+            row_id += 1
+            if row_id == 1:
+                continue
 
-    # with custom lexicon and Twitter type cleaning
-    sentiment = SentimentAnalysis(documents, dictionary, clean=True)
-    for result in sentiment:
-        print(result)
+            text = row[1]
+            if row[2] == 'positive':
+                sentiments.append(1)
+            else:
+                sentiments.append(-1)
+            documents.append(text)
 
-    sentiment = SentimentAnalysis(documents, domain='TwitterMarket')
-    for result in sentiment:
-        print(result)
+    result_class = [0] * len(documents)
+    sentiment_analysis = SentimentAnalysis(documents, domain='TwitterMarket')
+    for result in sentiment_analysis:
+        result_class[result[0]] = result[1]
+
+    report = metrics.classification_report(sentiments, result_class, digits=3)
+    print('\n{}'.format(report))
+
+
+
+
         

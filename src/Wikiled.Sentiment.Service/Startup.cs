@@ -2,6 +2,7 @@
 using System.IO;
 using System.Reactive.Concurrency;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
@@ -138,6 +139,8 @@ namespace Wikiled.Sentiment.Service
                 new ParsedReviewManagerFactory());
             TestingClient client = new TestingClient(pipeline);
             client.TrackArff = false;
+            // add limit of concurent processing
+            client.ProcessingSemaphore = new SemaphoreSlim(100);
 
             logger.Info("Initializing testing client...");
             client.Init();
@@ -156,11 +159,9 @@ namespace Wikiled.Sentiment.Service
                 logger.Info("Resources folder {0} found.", resourcesPath);
                 return Task.CompletedTask;
             }
-            else
-            {
-                DataDownloader dataDownloader = new DataDownloader();
-                return dataDownloader.DownloadFile(new Uri(url), resourcesPath);
-            }
+
+            DataDownloader dataDownloader = new DataDownloader();
+            return dataDownloader.DownloadFile(new Uri(url), resourcesPath);
         }
 
         private static Task Downloadlexicons(string path, string url)
