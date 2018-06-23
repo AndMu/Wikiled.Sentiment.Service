@@ -55,6 +55,15 @@ namespace Wikiled.Sentiment.Service.Controllers
             this.logger = logger;
         }
 
+        [Route("version")]
+        [HttpGet]
+        public string ServerVersion()
+        {
+            var version = $"Version: [{Assembly.GetExecutingAssembly().GetName().Version}]";
+            logger.LogInformation("Version request: {0}", version);
+            return version;
+        }
+
         [Route("domains")]
         [HttpGet]
         public string[] SupportedDomains()
@@ -93,52 +102,43 @@ namespace Wikiled.Sentiment.Service.Controllers
             }
 
             var monitor = new PerformanceMonitor(request.Documents.Length);
-            try
+            using (Observable.Interval(TimeSpan.FromSeconds(30)).Subscribe(item => logger.LogInformation(monitor.ToString())))
             {
-                using (Observable.Interval(TimeSpan.FromSeconds(30)).Subscribe(item => logger.LogInformation(monitor.ToString())))
+                ISentimentDataHolder loader = default;
+                if (request.Dictionary != null)
                 {
-
-                    ISentimentDataHolder loader = default;
-                    if (request.Dictionary != null)
-                    {
-                        logger.LogInformation("Creating custom dictionary with {0} words", request.Dictionary.Count);
-                        loader = SentimentDataHolder.Load(request.Dictionary.Select(item => new WordSentimentValueData(item.Key, new SentimentValueData(item.Value))));
-                    }
-                    else if (!string.IsNullOrEmpty(request.Domain))
-                    {
-                        logger.LogInformation("Using Domain dictionary [{0}]", request.Domain);
-                        loader = lexiconLoader.GetLexicon(request.Domain);
-                    }
-
-                    Dictionary<string, SingleProcessingData> documentTable = new Dictionary<string, SingleProcessingData>();
-
-                    foreach (var document in request.Documents)
-                    {
-                        if (document.Id == null ||
-                            documentTable.ContainsKey(document.Id))
-                        {
-                            document.Id = Guid.NewGuid().ToString();
-                        }
-
-                        documentTable[document.Id] = document;
-                    }
-
-                    var data = reviewSink.ParsedReviews.Where(item => documentTable.ContainsKey(item.Processed.Id));
-                    AsyncCountdownEvent count = new AsyncCountdownEvent(request.Documents.Length);
-                    var task = ProcessList(data, loader, count);
-
-                    foreach (var document in request.Documents)
-                    {
-                        reviewSink.AddReview(document, request.CleanText);
-                    }
-
-                    await Task.WhenAny(task, count.WaitAsync());
+                    logger.LogInformation("Creating custom dictionary with {0} words", request.Dictionary.Count);
+                    loader = SentimentDataHolder.Load(request.Dictionary.Select(item => new WordSentimentValueData(item.Key, new SentimentValueData(item.Value))));
                 }
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Failed");
-                throw;
+                else if (!string.IsNullOrEmpty(request.Domain))
+                {
+                    logger.LogInformation("Using Domain dictionary [{0}]", request.Domain);
+                    loader = lexiconLoader.GetLexicon(request.Domain);
+                }
+
+                Dictionary<string, SingleProcessingData> documentTable = new Dictionary<string, SingleProcessingData>();
+
+                foreach (var document in request.Documents)
+                {
+                    if (document.Id == null ||
+                        documentTable.ContainsKey(document.Id))
+                    {
+                        document.Id = Guid.NewGuid().ToString();
+                    }
+
+                    documentTable[document.Id] = document;
+                }
+
+                var data = reviewSink.ParsedReviews.Where(item => documentTable.ContainsKey(item.Processed.Id));
+                AsyncCountdownEvent count = new AsyncCountdownEvent(request.Documents.Length);
+                var task = ProcessList(data, loader, count);
+
+                foreach (var document in request.Documents)
+                {
+                    reviewSink.AddReview(document, request.CleanText);
+                }
+
+                await Task.WhenAny(task, count.WaitAsync());
             }
         }
 
@@ -173,16 +173,6 @@ namespace Wikiled.Sentiment.Service.Controllers
                                 return item;
                             })
                         .LastOrDefaultAsync();
-        }
-
-        [Route("version")]
-        [HttpGet]
-
-        public string ServerVersion()
-        {
-            var version = $"Version: [{Assembly.GetExecutingAssembly().GetName().Version}]";
-            logger.LogInformation("Version request: {0}", version);
-            return version;
         }
     }
 }

@@ -12,7 +12,6 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using NLog;
 using Wikiled.Sentiment.Analysis.Processing;
 using Wikiled.Sentiment.Analysis.Processing.Pipeline;
 using Wikiled.Sentiment.Analysis.Processing.Splitters;
@@ -20,18 +19,18 @@ using Wikiled.Sentiment.Service.Hubs;
 using Wikiled.Sentiment.Service.Logic;
 using Wikiled.Sentiment.Text.NLP;
 using Wikiled.Sentiment.Text.Resources;
+using Wikiled.Server.Core.Errors;
 using Wikiled.Server.Core.Helpers;
 using Wikiled.Text.Analysis.Cache;
 using Wikiled.Text.Analysis.POS;
-using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
 namespace Wikiled.Sentiment.Service
 {
     public class Startup
     {
-        private static readonly Logger logger = LogManager.GetCurrentClassLogger();
+        private readonly ILogger<Startup> logger;
 
-        public Startup(IHostingEnvironment env)
+        public Startup(ILoggerFactory loggerFactory, IHostingEnvironment env)
         {
             var builder = new ConfigurationBuilder()
                 .SetBasePath(env.ContentRootPath)
@@ -40,8 +39,9 @@ namespace Wikiled.Sentiment.Service
                 .AddEnvironmentVariables();
             Configuration = builder.Build();
             Env = env;
-            ReconfigureLogging();
-            logger.Info($"Starting: {Assembly.GetExecutingAssembly().GetName().Version}");
+            logger = loggerFactory.CreateLogger<Startup>();
+            Configuration.ChangeNlog();
+            logger.LogInformation($"Starting: {Assembly.GetExecutingAssembly().GetName().Version}");
         }
 
         public IConfigurationRoot Configuration { get; }
@@ -65,7 +65,10 @@ namespace Wikiled.Sentiment.Service
             {
                 options.MapHub<SentimentHub>("/Sentiment");
             });
+
             app.UseHttpsRedirection();
+            app.UseExceptionHandlingMiddleware();
+            app.UseHttpStatusCodeExceptionMiddleware();
             app.UseMvc();
         }
 
@@ -98,7 +101,7 @@ namespace Wikiled.Sentiment.Service
             builder.Populate(services);
             var appContainer = builder.Build();
 
-            logger.Info("Ready!");
+            logger.LogInformation("Ready!");
             // Create the IServiceProvider based on the container.
             return new AutofacServiceProvider(appContainer);
         }
@@ -128,7 +131,7 @@ namespace Wikiled.Sentiment.Service
             loader.Load(path);
             builder.RegisterInstance(loader).As<ILexiconLoader>();
 
-            logger.Info("Loading splitter...");
+            logger.LogInformation("Loading splitter...");
             var cache = new MemoryCache(new MemoryCacheOptions());
             var splitterHelper = new MainSplitterFactory(new LocalCacheFactory(cache), configuration).Create(POSTaggerType.SharpNLP);
             ReviewSink sink = new ReviewSink(splitterHelper.Splitter);
@@ -142,7 +145,7 @@ namespace Wikiled.Sentiment.Service
             // add limit of concurent processing
             client.ProcessingSemaphore = new SemaphoreSlim(100);
 
-            logger.Info("Initializing testing client...");
+            logger.LogInformation("Initializing testing client...");
             client.Init();
             sink.ParsedReviews = client.Process();
             builder.RegisterInstance(client);
@@ -151,12 +154,12 @@ namespace Wikiled.Sentiment.Service
                    .SingleInstance();
         }
 
-        private static Task DownloadResources(string resourcesPath, string url)
+        private Task DownloadResources(string resourcesPath, string url)
         {
-            logger.Info("Setup resources - {0} from {1}", resourcesPath, url);
+            logger.LogInformation("Setup resources - {0} from {1}", resourcesPath, url);
             if (Directory.Exists(resourcesPath))
             {
-                logger.Info("Resources folder {0} found.", resourcesPath);
+                logger.LogInformation("Resources folder {0} found.", resourcesPath);
                 return Task.CompletedTask;
             }
 
@@ -164,53 +167,17 @@ namespace Wikiled.Sentiment.Service
             return dataDownloader.DownloadFile(new Uri(url), resourcesPath);
         }
 
-        private static Task Downloadlexicons(string path, string url)
+        private Task Downloadlexicons(string path, string url)
         {
-            logger.Info("Setup lexicons - {0} from {1}", path, url);
+            logger.LogInformation("Setup lexicons - {0} from {1}", path, url);
             if (Directory.Exists(path))
             {
-                logger.Info("Removing old lexicon folder - {0}", path);
+                logger.LogInformation("Removing old lexicon folder - {0}", path);
                 Directory.Delete(path);
             }
 
             DataDownloader dataDownloader = new DataDownloader();
             return dataDownloader.DownloadFile(new Uri(url), path);
-        }
-
-        private void ReconfigureLogging()
-        {
-            // manually refresh of NLog configuration
-            // as it is not picking up global
-            LogManager.Configuration.Variables["logDirectory"] =
-                Configuration.GetSection("logging").GetValue<string>("path");
-
-            var logLevel = Configuration.GetValue<LogLevel>("Logging:LogLevel:Default");
-            switch (logLevel)
-            {
-                case LogLevel.Trace:
-                    LogManager.GlobalThreshold = NLog.LogLevel.Trace;
-                    break;
-                case LogLevel.Debug:
-                    LogManager.GlobalThreshold = NLog.LogLevel.Debug;
-                    break;
-                case LogLevel.Information:
-                    LogManager.GlobalThreshold = NLog.LogLevel.Info;
-                    break;
-                case LogLevel.Warning:
-                    LogManager.GlobalThreshold = NLog.LogLevel.Warn;
-                    break;
-                case LogLevel.Error:
-                    LogManager.GlobalThreshold = NLog.LogLevel.Error;
-                    break;
-                case LogLevel.Critical:
-                    LogManager.GlobalThreshold = NLog.LogLevel.Fatal;
-                    break;
-                case LogLevel.None:
-                    LogManager.GlobalThreshold = NLog.LogLevel.Off;
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException();
-            }
         }
     }
 }

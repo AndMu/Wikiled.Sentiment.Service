@@ -25,23 +25,33 @@ class SentimentAnalysis(object):
             self.supported_domains = json.loads(session.get(url).content)
 
     def __iter__(self):
+        index = 0
+        processed_ids = {}
+        batch_request_documents = []
+        for document in self.documents:
+            batch_request_documents = []
+            id = str(uuid.uuid4())
+            batch_request_documents.append({'text': document, 'id': id})
+            processed_ids[id] = index
+            index += 1
+            if len(batch_request_documents) > 200:
+                yield from self.process_on_server(batch_request_documents, processed_ids)
+
+        # Process outstanding documents
+        if len(batch_request_documents) > 0:
+            yield from self.process_on_server(batch_request_documents, processed_ids)
+
+    def process_on_server(self, batch_request_documents, processed_ids):
+        data = {}
+        data['CleanText'] = self.clean
+        if self.lexicon is not None:
+            data['dictionary'] = self.lexicon
+        if self.domain is not None:
+            data['domain'] = self.domain
+
         with Session() as session:
-            url = "http://sentiment.wikiled.com/api/sentiment/parsestream"
-            data = {}
-            data['CleanText'] = self.clean
-            if self.lexicon is not None:
-                data['dictionary'] = self.lexicon
-            if self.domain is not None:
-                data['domain'] = self.domain
-            request_documents = []
-            index = 0
-            processed_ids = {}
-            for document in self.documents:
-                id = str(uuid.uuid4())
-                request_documents.append({'text': document, 'id': id})
-                processed_ids[id] = index
-                index += 1
-            data['documents'] = request_documents
+            url = 'http://sentiment.wikiled.com/api/sentiment/parsestream'''
+            data['documents'] = batch_request_documents
             json_object = json.dumps(data, indent=2)
             headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
             with session.post(url, json_object, headers=headers, stream=True) as r:
@@ -100,8 +110,3 @@ if __name__ == "__main__":
 
     report = metrics.classification_report(sentiments, result_class, digits=3)
     print('\n{}'.format(report))
-
-
-
-
-        
