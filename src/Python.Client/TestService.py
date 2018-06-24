@@ -36,6 +36,7 @@ class SentimentAnalysis(object):
             if len(batch_request_documents) >= 200:
                 yield from self.process_on_server(batch_request_documents, processed_ids)
                 batch_request_documents = []
+                print('Processed {}'.format(index))
 
         # Process outstanding documents
         if len(batch_request_documents) > 0:
@@ -105,8 +106,13 @@ if __name__ == "__main__":
 
     result_class = [0] * len(documents)
     sentiment_analysis = SentimentAnalysis(documents, domain='TwitterMarket')
+    y_actual = []
+    y_result = []
     for result in sentiment_analysis:
         result_class[result[0]] = result[1]
+        if result[1] is not None:
+            y_actual.append(sentiments[result[0]])
+            y_result.append(result[1])
 
     report = metrics.classification_report(sentiments, result_class, digits=3)
     print('\n{}'.format(report))

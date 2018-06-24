@@ -131,7 +131,7 @@ namespace Wikiled.Sentiment.Service.Controllers
 
                 var data = reviewSink.ParsedReviews.Where(item => documentTable.ContainsKey(item.Processed.Id));
                 AsyncCountdownEvent count = new AsyncCountdownEvent(request.Documents.Length);
-                var task = ProcessList(data, loader, count);
+                var task = ProcessList(data, loader, count, monitor);
 
                 foreach (var document in request.Documents)
                 {
@@ -144,7 +144,7 @@ namespace Wikiled.Sentiment.Service.Controllers
             logger.LogInformation("Completed with final performance: {0}", monitor);
         }
 
-        private async Task ProcessList(IObservable<ProcessingContext> data, ISentimentDataHolder loader, AsyncCountdownEvent count)
+        private async Task ProcessList(IObservable<ProcessingContext> data, ISentimentDataHolder loader, AsyncCountdownEvent count, PerformanceMonitor monitor)
         {
             var result = data.Select(
                 item =>
@@ -171,6 +171,7 @@ namespace Wikiled.Sentiment.Service.Controllers
                                     Response.Body.Write(newline, 0, newline.Length);
                                 }
 
+                                monitor.Increment();
                                 count.Signal();
                                 return item;
                             })
