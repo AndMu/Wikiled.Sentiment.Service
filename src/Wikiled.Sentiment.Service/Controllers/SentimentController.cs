@@ -102,7 +102,7 @@ namespace Wikiled.Sentiment.Service.Controllers
             }
 
             var monitor = new PerformanceMonitor(request.Documents.Length);
-            using (Observable.Interval(TimeSpan.FromSeconds(30)).Subscribe(item => logger.LogInformation(monitor.ToString())))
+            using (Observable.Interval(TimeSpan.FromSeconds(10)).Subscribe(item => logger.LogInformation(monitor.ToString())))
             {
                 ISentimentDataHolder loader = default;
                 if (request.Dictionary != null)
