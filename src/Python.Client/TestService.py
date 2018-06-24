@@ -29,13 +29,13 @@ class SentimentAnalysis(object):
         processed_ids = {}
         batch_request_documents = []
         for document in self.documents:
-            batch_request_documents = []
             id = str(uuid.uuid4())
             batch_request_documents.append({'text': document, 'id': id})
             processed_ids[id] = index
             index += 1
-            if len(batch_request_documents) > 200:
+            if len(batch_request_documents) >= 200:
                 yield from self.process_on_server(batch_request_documents, processed_ids)
+                batch_request_documents = []
 
         # Process outstanding documents
         if len(batch_request_documents) > 0:

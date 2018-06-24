@@ -140,6 +140,8 @@ namespace Wikiled.Sentiment.Service.Controllers
 
                 await Task.WhenAny(task, count.WaitAsync());
             }
+
+            logger.LogInformation("Completed with final performance: {0}", monitor);
         }
 
         private async Task ProcessList(IObservable<ProcessingContext> data, ISentimentDataHolder loader, AsyncCountdownEvent count)
