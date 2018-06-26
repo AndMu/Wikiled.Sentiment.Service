@@ -176,6 +176,7 @@ namespace Wikiled.Sentiment.Service
                 Directory.Delete(path);
             }
 
+            Directory.CreateDirectory(path);
             DataDownloader dataDownloader = new DataDownloader();
             return dataDownloader.DownloadFile(new Uri(url), path);
         }
