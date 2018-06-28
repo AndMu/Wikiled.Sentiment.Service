@@ -110,9 +110,9 @@ if __name__ == "__main__":
     y_result = []
     for result in sentiment_analysis:
         result_class[result[0]] = result[1]
-        if result[1] is not None:
+        if result[1] != 0:
             y_actual.append(sentiments[result[0]])
             y_result.append(result[1])
 
-    report = metrics.classification_report(sentiments, result_class, digits=3)
+    report = metrics.classification_report(y_actual, y_result, digits=3)
     print('\n{}'.format(report))
