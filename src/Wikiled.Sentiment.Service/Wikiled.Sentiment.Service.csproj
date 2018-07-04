@@ -15,7 +15,7 @@
     <PackageReference Include="Autofac.Extensions.DependencyInjection" Version="4.2.2" />
     <PackageReference Include="SharpZipLib" Version="1.0.0-alpha2" />
     <PackageReference Include="System.Configuration.ConfigurationManager" Version="4.5.0" />
-    <PackageReference Include="Wikiled.Sentiment.Analysis" Version="3.0.53" />
+    <PackageReference Include="Wikiled.Sentiment.Analysis" Version="3.0.55" />
     <PackageReference Include="Wikiled.Server.Core" Version="1.1.11" />
   </ItemGroup>
 

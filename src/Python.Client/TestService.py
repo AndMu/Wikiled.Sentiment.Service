@@ -51,7 +51,7 @@ class SentimentAnalysis(object):
             data['domain'] = self.domain
 
         with Session() as session:
-            url = 'http://sentiment.wikiled.com/api/sentiment/parsestream'''
+            url = 'http://localhost:63804/api/sentiment/parsestream'
             data['documents'] = batch_request_documents
             json_object = json.dumps(data, indent=2)
             headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}

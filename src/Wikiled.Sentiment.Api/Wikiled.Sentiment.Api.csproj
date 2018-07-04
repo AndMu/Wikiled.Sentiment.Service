@@ -13,7 +13,7 @@
 
   <ItemGroup>
     <PackageReference Include="System.ComponentModel.Annotations" Version="4.5.0" />
-    <PackageReference Include="Wikiled.Sentiment.Analysis" Version="3.0.53" />
+    <PackageReference Include="Wikiled.Sentiment.Analysis" Version="3.0.55" />
   </ItemGroup>
 
 </Project>

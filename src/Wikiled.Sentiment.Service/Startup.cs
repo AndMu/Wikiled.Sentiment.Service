@@ -143,7 +143,7 @@ namespace Wikiled.Sentiment.Service
             TestingClient client = new TestingClient(pipeline);
             client.TrackArff = false;
             // add limit of concurent processing
-            client.ProcessingSemaphore = new SemaphoreSlim(100);
+            pipeline.ProcessingSemaphore = new SemaphoreSlim(200);
 
             logger.LogInformation("Initializing testing client...");
             client.Init();
