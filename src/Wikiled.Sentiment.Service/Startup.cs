@@ -173,7 +173,7 @@ namespace Wikiled.Sentiment.Service
             if (Directory.Exists(path))
             {
                 logger.LogInformation("Removing old lexicon folder - {0}", path);
-                Directory.Delete(path);
+                Directory.Delete(path, true);
             }
 
             Directory.CreateDirectory(path);
