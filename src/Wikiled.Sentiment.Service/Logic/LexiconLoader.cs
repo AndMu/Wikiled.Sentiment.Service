@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using NLog;
-using Wikiled.Common.Arguments;
 using Wikiled.Sentiment.Text.Parser;
 using Wikiled.Sentiment.Text.Resources;
 
@@ -19,7 +18,11 @@ namespace Wikiled.Sentiment.Service.Logic
 
         public void Load(string path)
         {
-            Guard.NotNullOrEmpty(() => path, path);
+            if (string.IsNullOrEmpty(path))
+            {
+                throw new ArgumentException("Value cannot be null or empty.", nameof(path));
+            }
+
             logger.Info("Loading lexicons: {0}", path);
             table = new Dictionary<string, ISentimentDataHolder>(StringComparer.OrdinalIgnoreCase);
             foreach (var file in Directory.GetFiles(path))
@@ -35,11 +38,15 @@ namespace Wikiled.Sentiment.Service.Logic
 
         public ISentimentDataHolder GetLexicon(string name)
         {
-            Guard.NotNullOrEmpty(() => name, name);
-            logger.Debug("Get lexicon: {0}", name);
             if (!table.TryGetValue(name, out var value))
             {
                 throw new ArgumentOutOfRangeException(nameof(name), "Lexicon not found: " + name);
+            }
+
+            logger.Debug("Get lexicon: {0}", name);
+            if (string.IsNullOrEmpty(name))
+            {
+                throw new ArgumentException("Value cannot be null or empty.", nameof(name));
             }
 
             return value;

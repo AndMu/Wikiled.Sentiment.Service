@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Reactive.Subjects;
 using NLog;
-using Wikiled.Common.Arguments;
 using Wikiled.Sentiment.Analysis.Processing.Pipeline;
+using Wikiled.Sentiment.Api.Request;
 using Wikiled.Sentiment.Text.Data.Review;
 using Wikiled.Sentiment.Text.Parser;
 using Wikiled.Text.Analysis.Twitter;
@@ -21,15 +21,12 @@ namespace Wikiled.Sentiment.Service.Logic
 
         public ReviewSink(ITextSplitter splitter)
         {
-            Guard.NotNull(() => splitter, splitter);
-            this.splitter = splitter;
+            this.splitter = splitter ?? throw new ArgumentNullException(nameof(splitter));
         }
 
         public IObservable<IParsedDocumentHolder> Reviews => reviews;
 
-        public IObservable<ProcessingContext> ParsedReviews { get; set; }
-
-        public void AddReview(SingleProcessingData review, bool doCleanup)
+        public void AddReview(SingleRequestData review, bool doCleanup)
         {
             if (review.Date == null)
             {
@@ -37,12 +34,23 @@ namespace Wikiled.Sentiment.Service.Logic
             }
 
             review.Text = doCleanup ? cleanup.Cleanup(review.Text) : review.Text;
-            reviews.OnNext(new ParsingDocumentHolder(splitter, review));
+            SingleProcessingData data = new SingleProcessingData();
+            data.Author = review.Author;
+            data.Date = review.Date;
+            data.Id = review.Id;
+            data.Text = review.Text;
+            reviews.OnNext(new ParsingDocumentHolder(splitter, data));
+        }
+
+        public void Completed()
+        {
+            reviews.OnCompleted();
         }
 
         public void Dispose()
         {
             logger.Debug("Dispose");
+            reviews.OnCompleted();
             reviews?.Dispose();
         }
     }

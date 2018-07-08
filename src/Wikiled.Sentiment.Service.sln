@@ -3,16 +3,16 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.27703.1
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Wikiled.Sentiment.Service", "Wikiled.Sentiment.Service\Wikiled.Sentiment.Service.csproj", "{762F998A-82CA-4F80-962C-63FD84956EC0}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Wikiled.Sentiment.Service.Tests", "Wikiled.Sentiment.Service.Tests\Wikiled.Sentiment.Service.Tests.csproj", "{E332C251-C3D4-4DAE-9BE4-8AF0727653FD}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Wikiled.Sentiment.Api", "Wikiled.Sentiment.Api\Wikiled.Sentiment.Api.csproj", "{B07BA363-4FEE-4ADB-9320-5B97FAC6F45E}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{BBF96401-642A-45B1-81F4-071699A3E296}"
 	ProjectSection(SolutionItems) = preProject
 		Dockerfile = Dockerfile
 	EndProjectSection
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Wikiled.Sentiment.Api", "Wikiled.Sentiment.Api\Wikiled.Sentiment.Api.csproj", "{A57539D9-DA4A-42CD-ADCB-DF19FA560C6D}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Wikiled.Sentiment.Service", "Wikiled.Sentiment.Service\Wikiled.Sentiment.Service.csproj", "{CBCA754E-F4B9-4EB3-A126-F71EDD107C98}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -20,18 +20,18 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{762F998A-82CA-4F80-962C-63FD84956EC0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{762F998A-82CA-4F80-962C-63FD84956EC0}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{762F998A-82CA-4F80-962C-63FD84956EC0}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{762F998A-82CA-4F80-962C-63FD84956EC0}.Release|Any CPU.Build.0 = Release|Any CPU
 		{E332C251-C3D4-4DAE-9BE4-8AF0727653FD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{E332C251-C3D4-4DAE-9BE4-8AF0727653FD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E332C251-C3D4-4DAE-9BE4-8AF0727653FD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E332C251-C3D4-4DAE-9BE4-8AF0727653FD}.Release|Any CPU.Build.0 = Release|Any CPU
-		{B07BA363-4FEE-4ADB-9320-5B97FAC6F45E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{B07BA363-4FEE-4ADB-9320-5B97FAC6F45E}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{B07BA363-4FEE-4ADB-9320-5B97FAC6F45E}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{B07BA363-4FEE-4ADB-9320-5B97FAC6F45E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A57539D9-DA4A-42CD-ADCB-DF19FA560C6D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A57539D9-DA4A-42CD-ADCB-DF19FA560C6D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A57539D9-DA4A-42CD-ADCB-DF19FA560C6D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A57539D9-DA4A-42CD-ADCB-DF19FA560C6D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CBCA754E-F4B9-4EB3-A126-F71EDD107C98}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CBCA754E-F4B9-4EB3-A126-F71EDD107C98}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CBCA754E-F4B9-4EB3-A126-F71EDD107C98}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CBCA754E-F4B9-4EB3-A126-F71EDD107C98}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

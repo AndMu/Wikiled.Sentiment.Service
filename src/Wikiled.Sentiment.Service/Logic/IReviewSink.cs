@@ -1,5 +1,5 @@
 ﻿using System;
-using Wikiled.Sentiment.Analysis.Processing.Pipeline;
+using Wikiled.Sentiment.Api.Request;
 using Wikiled.Sentiment.Text.Data.Review;
 
 namespace Wikiled.Sentiment.Service.Logic
@@ -8,8 +8,8 @@ namespace Wikiled.Sentiment.Service.Logic
     {
         IObservable<IParsedDocumentHolder> Reviews { get; }
 
-        IObservable<ProcessingContext> ParsedReviews { get; }
+        void AddReview(SingleRequestData review, bool doCleanup);
 
-        void AddReview(SingleProcessingData review, bool doCleanup);
+        void Completed();
     }
 }

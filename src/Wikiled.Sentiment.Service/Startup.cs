@@ -18,6 +18,7 @@ using Wikiled.Sentiment.Analysis.Processing.Splitters;
 using Wikiled.Sentiment.Service.Hubs;
 using Wikiled.Sentiment.Service.Logic;
 using Wikiled.Sentiment.Text.NLP;
+using Wikiled.Sentiment.Text.Parser;
 using Wikiled.Sentiment.Text.Resources;
 using Wikiled.Server.Core.Errors;
 using Wikiled.Server.Core.Helpers;
@@ -57,7 +58,7 @@ namespace Wikiled.Sentiment.Service
             }
             else
             {
-                app.UseHsts();
+                //app.UseHsts();
             }
 
             app.UseCors("CorsPolicy");
@@ -66,7 +67,7 @@ namespace Wikiled.Sentiment.Service
                 options.MapHub<SentimentHub>("/Sentiment");
             });
 
-            app.UseHttpsRedirection();
+            //app.UseHttpsRedirection();
             app.UseExceptionHandlingMiddleware();
             app.UseHttpStatusCodeExceptionMiddleware();
             app.UseMvc();
@@ -134,11 +135,9 @@ namespace Wikiled.Sentiment.Service
             logger.LogInformation("Loading splitter...");
             var cache = new MemoryCache(new MemoryCacheOptions());
             var splitterHelper = new MainSplitterFactory(new LocalCacheFactory(cache), configuration).Create(POSTaggerType.SharpNLP);
-            ReviewSink sink = new ReviewSink(splitterHelper.Splitter);
             ProcessingPipeline pipeline = new ProcessingPipeline(
                 TaskPoolScheduler.Default,
                 splitterHelper,
-                sink.Reviews,
                 new ParsedReviewManagerFactory());
             TestingClient client = new TestingClient(pipeline);
             client.TrackArff = false;
@@ -147,11 +146,9 @@ namespace Wikiled.Sentiment.Service
 
             logger.LogInformation("Initializing testing client...");
             client.Init();
-            sink.ParsedReviews = client.Process();
+            builder.RegisterInstance(splitterHelper.Splitter);
             builder.RegisterInstance(client);
-            builder.RegisterInstance(sink)
-                   .As<IReviewSink>()
-                   .SingleInstance();
+            builder.RegisterType<ReviewSink>().As<IReviewSink>();
         }
 
         private Task DownloadResources(string resourcesPath, string url)

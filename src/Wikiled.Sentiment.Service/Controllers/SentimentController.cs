@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Reactive.Linq;
 using System.Reflection;
@@ -8,8 +7,6 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
-using Nito.AsyncEx;
-using Wikiled.Common.Arguments;
 using Wikiled.Common.Logging;
 using Wikiled.Sentiment.Analysis.Processing;
 using Wikiled.Sentiment.Analysis.Processing.Pipeline;
@@ -33,7 +30,7 @@ namespace Wikiled.Sentiment.Service.Controllers
 
         private readonly IReviewSink reviewSink;
 
-        private TestingClient client;
+        private readonly TestingClient client;
 
         private readonly ILexiconLoader lexiconLoader;
 
@@ -43,16 +40,11 @@ namespace Wikiled.Sentiment.Service.Controllers
 
         public SentimentController(ILogger<SentimentController> logger, IReviewSink reviewSink, TestingClient client, IIpResolve resolve, ILexiconLoader lexiconLoader)
         {
-            Guard.NotNull(() => reviewSink, reviewSink);
-            Guard.NotNull(() => client, client);
-            Guard.NotNull(() => resolve, resolve);
-            Guard.NotNull(() => lexiconLoader, lexiconLoader);
-
-            this.reviewSink = reviewSink;
-            this.client = client;
-            this.resolve = resolve;
-            this.lexiconLoader = lexiconLoader;
-            this.logger = logger;
+            this.reviewSink = reviewSink ?? throw new ArgumentNullException(nameof(reviewSink));
+            this.client = client ?? throw new ArgumentNullException(nameof(client));
+            this.resolve = resolve ?? throw new ArgumentNullException(nameof(resolve));
+            this.lexiconLoader = lexiconLoader ?? throw new ArgumentNullException(nameof(lexiconLoader));
+            this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         [Route("version")]
@@ -73,14 +65,15 @@ namespace Wikiled.Sentiment.Service.Controllers
 
         [Route("parse")]
         [HttpPost]
-        public async Task<Document> Parse([FromBody]SingleProcessingData review)
+        public async Task<Document> Parse([FromBody]SingleRequestData review)
         {
             logger.LogInformation("Parse [{0}]", resolve.GetRequestIp());
             review.Id = Guid.NewGuid().ToString();
-            var result = reviewSink.ParsedReviews
-                .Select(item => item.Processed).Where(item => item.Id == review.Id)
+            var result = client.Process(reviewSink.Reviews)
+                .Select(item => item.Processed)
                 .FirstOrDefaultAsync().GetAwaiter();
             reviewSink.AddReview(review, false);
+            reviewSink.Completed();
             var document = await result;
             return document;
         }
@@ -115,36 +108,24 @@ namespace Wikiled.Sentiment.Service.Controllers
                     logger.LogInformation("Using Domain dictionary [{0}]", request.Domain);
                     loader = lexiconLoader.GetLexicon(request.Domain);
                 }
-
-                Dictionary<string, SingleProcessingData> documentTable = new Dictionary<string, SingleProcessingData>();
-
-                foreach (var document in request.Documents)
-                {
-                    if (document.Id == null ||
-                        documentTable.ContainsKey(document.Id))
-                    {
-                        document.Id = Guid.NewGuid().ToString();
-                    }
-
-                    documentTable[document.Id] = document;
-                }
-
-                var data = reviewSink.ParsedReviews.Where(item => documentTable.ContainsKey(item.Processed.Id));
-                AsyncCountdownEvent count = new AsyncCountdownEvent(request.Documents.Length);
-                var task = ProcessList(data, loader, count, monitor);
+               
+                var data = client.Process(reviewSink.Reviews);
+                var subscription = ProcessList(data, loader, monitor);
 
                 foreach (var document in request.Documents)
                 {
                     reviewSink.AddReview(document, request.CleanText);
                 }
 
-                await Task.WhenAny(task, count.WaitAsync());
+                reviewSink.Completed();
+                await subscription;
+                subscription.Dispose();
             }
 
             logger.LogInformation("Completed with final performance: {0}", monitor);
         }
 
-        private async Task ProcessList(IObservable<ProcessingContext> data, ISentimentDataHolder loader, AsyncCountdownEvent count, PerformanceMonitor monitor)
+        private async Task ProcessList(IObservable<ProcessingContext> data, ISentimentDataHolder loader, PerformanceMonitor monitor)
         {
             var result = data.Select(
                 item =>
@@ -172,7 +153,6 @@ namespace Wikiled.Sentiment.Service.Controllers
                                 }
 
                                 monitor.Increment();
-                                count.Signal();
                                 return item;
                             })
                         .LastOrDefaultAsync();

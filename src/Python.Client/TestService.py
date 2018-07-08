@@ -12,6 +12,7 @@ class SentimentAnalysis(object):
         self.documents = documents
         self.clean = clean
         self.domain = domain
+        self.host = 'localhost:63804'
         self.__load__()
         
         if domain is not None and domain.lower() not in [x.lower() for x in self.supported_domains]:
@@ -19,9 +20,9 @@ class SentimentAnalysis(object):
 
     def __load__(self):
         with Session() as session:
-            url = "http://sentiment.wikiled.com/api/sentiment/version"
+            url = 'http://{}/api/sentiment/version'.format(self.host)
             self.version = session.get(url).content
-            url = "http://sentiment.wikiled.com/api/sentiment/domains"
+            url = 'http://{}/api/sentiment/domains'.format(self.host)
             self.supported_domains = json.loads(session.get(url).content)
 
     def __iter__(self):
@@ -51,7 +52,7 @@ class SentimentAnalysis(object):
             data['domain'] = self.domain
 
         with Session() as session:
-            url = 'http://localhost:63804/api/sentiment/parsestream'
+            url = 'http://{}/api/sentiment/parsestream'.format(self.host)
             data['documents'] = batch_request_documents
             json_object = json.dumps(data, indent=2)
             headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
@@ -96,6 +97,8 @@ if __name__ == "__main__":
             row_id += 1
             if row_id == 1:
                 continue
+            #if row_id > 2:
+            #    break
 
             text = row[1]
             if row[2] == 'positive':
