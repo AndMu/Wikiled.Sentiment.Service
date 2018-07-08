@@ -38,15 +38,15 @@ namespace Wikiled.Sentiment.Service.Logic
 
         public ISentimentDataHolder GetLexicon(string name)
         {
-            if (!table.TryGetValue(name, out var value))
-            {
-                throw new ArgumentOutOfRangeException(nameof(name), "Lexicon not found: " + name);
-            }
-
-            logger.Debug("Get lexicon: {0}", name);
             if (string.IsNullOrEmpty(name))
             {
                 throw new ArgumentException("Value cannot be null or empty.", nameof(name));
+            }
+
+            logger.Debug("Get lexicon: {0}", name);
+            if (!table.TryGetValue(name, out var value))
+            {
+                throw new ArgumentOutOfRangeException(nameof(name), "Lexicon not found: " + name);
             }
 
             return value;

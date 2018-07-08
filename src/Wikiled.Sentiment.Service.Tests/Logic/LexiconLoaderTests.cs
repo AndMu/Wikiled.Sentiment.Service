@@ -47,8 +47,8 @@ namespace Wikiled.Sentiment.Service.Tests.Logic
         [Test]
         public void CheckArguments()
         {
-            Assert.Throws<ArgumentNullException>(() => instance.GetLexicon(null));
-            Assert.Throws<ArgumentNullException>(() => instance.Load(null));
+            Assert.Throws<ArgumentException>(() => instance.GetLexicon(null));
+            Assert.Throws<ArgumentException>(() => instance.Load(null));
             Assert.Throws<ArgumentNullException>(() =>
             {
                 var data = instance.Supported;
