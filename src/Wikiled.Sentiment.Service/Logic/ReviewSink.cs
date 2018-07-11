@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Reactive.Subjects;
-using NLog;
-using Wikiled.Sentiment.Analysis.Processing.Pipeline;
+using Microsoft.Extensions.Logging;
 using Wikiled.Sentiment.Api.Request;
 using Wikiled.Sentiment.Text.Data.Review;
 using Wikiled.Sentiment.Text.Parser;
@@ -11,7 +10,7 @@ namespace Wikiled.Sentiment.Service.Logic
 {
     public class ReviewSink : IReviewSink
     {
-        private static readonly Logger logger = LogManager.GetCurrentClassLogger();
+        private ILogger<ReviewSink> logger;
 
         private readonly Subject<IParsedDocumentHolder> reviews = new Subject<IParsedDocumentHolder>();
 
@@ -19,8 +18,14 @@ namespace Wikiled.Sentiment.Service.Logic
 
         private readonly MessageCleanup cleanup = new MessageCleanup();
 
-        public ReviewSink(ITextSplitter splitter)
+        public ReviewSink(ILoggerFactory loggerFactory, ITextSplitter splitter)
         {
+            if (loggerFactory == null)
+            {
+                throw new ArgumentNullException(nameof(loggerFactory));
+            }
+
+            logger = loggerFactory.CreateLogger<ReviewSink>();
             this.splitter = splitter ?? throw new ArgumentNullException(nameof(splitter));
         }
 
@@ -31,6 +36,11 @@ namespace Wikiled.Sentiment.Service.Logic
             if (review.Date == null)
             {
                 review.Date = DateTime.Now;
+            }
+
+            if (review.Id == null)
+            {
+                review.Id = Guid.NewGuid().ToString();
             }
 
             review.Text = doCleanup ? cleanup.Cleanup(review.Text) : review.Text;
@@ -49,7 +59,7 @@ namespace Wikiled.Sentiment.Service.Logic
 
         public void Dispose()
         {
-            logger.Debug("Dispose");
+            logger.LogDebug("Dispose");
             reviews.OnCompleted();
             reviews?.Dispose();
         }
