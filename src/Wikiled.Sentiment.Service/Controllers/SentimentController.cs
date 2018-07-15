@@ -68,7 +68,11 @@ namespace Wikiled.Sentiment.Service.Controllers
         public async Task<Document> Parse([FromBody]SingleRequestData review)
         {
             logger.LogInformation("Parse [{0}]", resolve.GetRequestIp());
-            review.Id = Guid.NewGuid().ToString();
+            if (review.Id == null)
+            {
+                review.Id = Guid.NewGuid().ToString();
+            }
+
             var result = client.Process(reviewSink.Reviews)
                 .Select(item => item.Processed)
                 .FirstOrDefaultAsync().GetAwaiter();

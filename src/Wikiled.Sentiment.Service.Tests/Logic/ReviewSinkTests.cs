@@ -1,4 +1,5 @@
 using System;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using NUnit.Framework;
 using Wikiled.Sentiment.Service.Logic;
@@ -23,12 +24,13 @@ namespace Wikiled.Sentiment.Service.Tests.Logic
         [Test]
         public void Construct()
         {
-            Assert.Throws<ArgumentNullException>(() => new ReviewSink(null));
+            Assert.Throws<ArgumentNullException>(() => new ReviewSink(new NullLoggerFactory(), null));
+            Assert.Throws<ArgumentNullException>(() => new ReviewSink(null, mockTextSplitter.Object));
         }
 
         private ReviewSink CreateReviewSink()
         {
-            return new ReviewSink(mockTextSplitter.Object);
+            return new ReviewSink(new NullLoggerFactory(), mockTextSplitter.Object);
         }
     }
 }
