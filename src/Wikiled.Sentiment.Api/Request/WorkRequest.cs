@@ -1,10 +1,11 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using Newtonsoft.Json;
 
 namespace Wikiled.Sentiment.Api.Request
 {
-    public class WorkRequest
+    public class WorkRequest : ICloneable
     {
         [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
         public Dictionary<string, double> Dictionary { get; set; }
@@ -15,5 +16,10 @@ namespace Wikiled.Sentiment.Api.Request
         public bool CleanText { get; set; }
 
         public string Domain { get; set; }
+
+        public object Clone()
+        {
+            return MemberwiseClone();
+        }
     }
 }
