@@ -22,6 +22,7 @@ using Wikiled.Sentiment.Text.Parser;
 using Wikiled.Sentiment.Text.Resources;
 using Wikiled.Server.Core.Errors;
 using Wikiled.Server.Core.Helpers;
+using Wikiled.Server.Core.Middleware;
 using Wikiled.Text.Analysis.Cache;
 using Wikiled.Text.Analysis.POS;
 
@@ -68,6 +69,7 @@ namespace Wikiled.Sentiment.Service
             });
 
             //app.UseHttpsRedirection();
+            app.UseRequestLogging();
             app.UseExceptionHandlingMiddleware();
             app.UseHttpStatusCodeExceptionMiddleware();
             app.UseMvc();

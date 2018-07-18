@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Linq;
 using System.Reactive.Linq;
-using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
@@ -12,48 +11,33 @@ using Wikiled.Sentiment.Analysis.Processing;
 using Wikiled.Sentiment.Analysis.Processing.Pipeline;
 using Wikiled.Sentiment.Api.Request;
 using Wikiled.Sentiment.Service.Logic;
-using Wikiled.Sentiment.Text.Data.Review;
 using Wikiled.Sentiment.Text.Parser;
 using Wikiled.Sentiment.Text.Sentiment;
 using Wikiled.Sentiment.Text.Structure;
 using Wikiled.Server.Core.ActionFilters;
-using Wikiled.Server.Core.Helpers;
+using Wikiled.Server.Core.Controllers;
 using Wikiled.Text.Analysis.Structure;
 
 namespace Wikiled.Sentiment.Service.Controllers
 {
     [Route("api/[controller]")]
     [TypeFilter(typeof(RequestValidationAttribute))]
-    public class SentimentController : Controller
+    public class SentimentController : BaseController
     {
-        private readonly ILogger<SentimentController> logger;
-
         private readonly IReviewSink reviewSink;
 
         private readonly TestingClient client;
 
         private readonly ILexiconLoader lexiconLoader;
 
-        private readonly IIpResolve resolve;
-
         private readonly IDocumentFromReviewFactory parsedFactory = new DocumentFromReviewFactory();
 
-        public SentimentController(ILogger<SentimentController> logger, IReviewSink reviewSink, TestingClient client, IIpResolve resolve, ILexiconLoader lexiconLoader)
+        public SentimentController(ILoggerFactory factory, IReviewSink reviewSink, TestingClient client, ILexiconLoader lexiconLoader)
+        : base(factory)
         {
             this.reviewSink = reviewSink ?? throw new ArgumentNullException(nameof(reviewSink));
             this.client = client ?? throw new ArgumentNullException(nameof(client));
-            this.resolve = resolve ?? throw new ArgumentNullException(nameof(resolve));
             this.lexiconLoader = lexiconLoader ?? throw new ArgumentNullException(nameof(lexiconLoader));
-            this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        }
-
-        [Route("version")]
-        [HttpGet]
-        public string ServerVersion()
-        {
-            var version = $"Version: [{Assembly.GetExecutingAssembly().GetName().Version}]";
-            logger.LogInformation("Version request: {0}", version);
-            return version;
         }
 
         [Route("domains")]
@@ -67,7 +51,6 @@ namespace Wikiled.Sentiment.Service.Controllers
         [HttpPost]
         public async Task<Document> Parse([FromBody]SingleRequestData review)
         {
-            logger.LogInformation("Parse [{0}]", resolve.GetRequestIp());
             if (review.Id == null)
             {
                 review.Id = Guid.NewGuid().ToString();
@@ -86,7 +69,6 @@ namespace Wikiled.Sentiment.Service.Controllers
         [Route("parsestream")]
         public async Task GetStream([FromBody] WorkRequest request)
         {
-            logger.LogInformation("GetStream [{0}] with <{1}> documents", resolve.GetRequestIp(), request?.Documents?.Length);
             Response.ContentType = "application/json";
             if (request?.Documents == null)
             {
@@ -99,20 +81,20 @@ namespace Wikiled.Sentiment.Service.Controllers
             }
 
             var monitor = new PerformanceMonitor(request.Documents.Length);
-            using (Observable.Interval(TimeSpan.FromSeconds(10)).Subscribe(item => logger.LogInformation(monitor.ToString())))
+            using (Observable.Interval(TimeSpan.FromSeconds(10)).Subscribe(item => Logger.LogInformation(monitor.ToString())))
             {
                 ISentimentDataHolder loader = default;
                 if (request.Dictionary != null)
                 {
-                    logger.LogInformation("Creating custom dictionary with {0} words", request.Dictionary.Count);
+                    Logger.LogInformation("Creating custom dictionary with {0} words", request.Dictionary.Count);
                     loader = SentimentDataHolder.Load(request.Dictionary.Select(item => new WordSentimentValueData(item.Key, new SentimentValueData(item.Value))));
                 }
                 else if (!string.IsNullOrEmpty(request.Domain))
                 {
-                    logger.LogInformation("Using Domain dictionary [{0}]", request.Domain);
+                    Logger.LogInformation("Using Domain dictionary [{0}]", request.Domain);
                     loader = lexiconLoader.GetLexicon(request.Domain);
                 }
-               
+
                 var data = client.Process(reviewSink.Reviews);
                 var subscription = ProcessList(data, loader, monitor);
 
@@ -122,11 +104,11 @@ namespace Wikiled.Sentiment.Service.Controllers
                 }
 
                 reviewSink.Completed();
-                await subscription;
+                await subscription.ConfigureAwait(false);
                 subscription.Dispose();
             }
 
-            logger.LogInformation("Completed with final performance: {0}", monitor);
+            Logger.LogInformation("Completed with final performance: {0}", monitor);
         }
 
         private async Task ProcessList(IObservable<ProcessingContext> data, ISentimentDataHolder loader, PerformanceMonitor monitor)

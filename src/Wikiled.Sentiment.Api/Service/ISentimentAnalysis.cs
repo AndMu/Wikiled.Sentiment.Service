@@ -9,7 +9,9 @@ namespace Wikiled.Sentiment.Api.Service
     public interface ISentimentAnalysis
     {
         Task<Document> Measure(SingleRequestData document, CancellationToken token);
-        IObservable<Document> Measure(SingleRequestData[] documents, CancellationToken token);
+        
+		IObservable<Document> Measure(SingleRequestData[] documents, CancellationToken token);
+		
         Task<Document> Measure(string text, CancellationToken token);
     }
 }

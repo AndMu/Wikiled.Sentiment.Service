@@ -23,7 +23,7 @@ namespace Wikiled.Sentiment.Api.Service
 
         public Task<Document> Measure(string text, CancellationToken token)
         {
-            return Measure(new SingleRequestData() {Text = text}, token);
+            return Measure(new SingleRequestData {Text = text}, token);
         }
 
         public async Task<Document> Measure(SingleRequestData document, CancellationToken token)
@@ -45,7 +45,7 @@ namespace Wikiled.Sentiment.Api.Service
 
             var current = (WorkRequest)request.Clone();
             current.Documents = documents;
-            return client.PostRequest<WorkRequest, Document>("parsestream", current, token);
+            return client.PostRequest<WorkRequest, Document>("api/sentiment/parsestream", current, token);
         }
     }
 }
