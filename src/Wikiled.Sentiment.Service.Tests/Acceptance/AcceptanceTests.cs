@@ -1,4 +1,3 @@
-using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -6,10 +5,9 @@ using NUnit.Framework;
 using Wikiled.Common.Net.Client;
 using Wikiled.Sentiment.Api.Request;
 using Wikiled.Sentiment.Api.Service;
-using Wikiled.Sentiment.Service;
 using Wikiled.Server.Core.Testing.Server;
 
-namespace Wikiled.Text.Anomaly.Service.Tests.Logic
+namespace Wikiled.Sentiment.Service.Tests.Acceptance
 {
     [TestFixture]
     public class AcceptanceTests
@@ -38,16 +36,16 @@ namespace Wikiled.Text.Anomaly.Service.Tests.Logic
         [Test]
         public async Task Measure()
         {
-            SentimentAnalysis analys = new SentimentAnalysis(
+            SentimentAnalysis analysis = new SentimentAnalysis(
                 new StreamApiClientFactory(NullLogger<StreamApiClient>.Instance, wrapper.Client, wrapper.Client.BaseAddress),
                 new WorkRequest
                 {
                     CleanText = true,
                     Domain = "TwitterMarket"
                 });
-            var result = await analys.Measure(
+            var result = await analysis.Measure(
                              "This market is so bad and it will get worse",
-                             CancellationToken.None);
+                             CancellationToken.None).ConfigureAwait(false);
             Assert.AreEqual(10, result.TotalWords);
             Assert.AreEqual(1, result.Stars);
             Assert.AreEqual(1, result.Sentences.Count);

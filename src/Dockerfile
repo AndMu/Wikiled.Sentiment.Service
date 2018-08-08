@@ -1,7 +1,7 @@
 FROM microsoft/dotnet:2.1.302-sdk AS builder
 ARG BUILD_VERSION  
 WORKDIR /source
-RUN echo $BUILD_VERSION
+
 COPY . .
 RUN dotnet publish /p:Version=$BUILD_VERSION --output /app/ --configuration Release
 
