@@ -1,30 +1,24 @@
-﻿using System;
-using System.IO;
-using System.Reactive.Concurrency;
-using System.Reflection;
-using System.Threading;
-using System.Threading.Tasks;
-using Autofac;
+﻿using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System;
+using System.IO;
+using System.Reflection;
+using System.Threading.Tasks;
+using Wikiled.Common.Utilities.Resources;
+using Wikiled.Sentiment.Analysis.Containers;
 using Wikiled.Sentiment.Analysis.Processing;
-using Wikiled.Sentiment.Analysis.Processing.Pipeline;
-using Wikiled.Sentiment.Analysis.Processing.Splitters;
 using Wikiled.Sentiment.Service.Hubs;
 using Wikiled.Sentiment.Service.Logic;
-using Wikiled.Sentiment.Text.NLP;
 using Wikiled.Sentiment.Text.Parser;
 using Wikiled.Sentiment.Text.Resources;
 using Wikiled.Server.Core.Errors;
 using Wikiled.Server.Core.Helpers;
 using Wikiled.Server.Core.Middleware;
-using Wikiled.Text.Analysis.Cache;
-using Wikiled.Text.Analysis.POS;
 
 namespace Wikiled.Sentiment.Service
 {
@@ -32,14 +26,17 @@ namespace Wikiled.Sentiment.Service
     {
         private readonly ILogger<Startup> logger;
 
+        private readonly ILoggerFactory loggerFactory;
+
         public Startup(ILoggerFactory loggerFactory, IHostingEnvironment env)
         {
-            var builder = new ConfigurationBuilder()
+            IConfigurationBuilder builder = new ConfigurationBuilder()
                 .SetBasePath(env.ContentRootPath)
                 .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
                 .AddJsonFile($"appsettings.{env.EnvironmentName}.json", optional: true)
                 .AddEnvironmentVariables();
             Configuration = builder.Build();
+            this.loggerFactory = loggerFactory;
             Env = env;
             logger = loggerFactory.CreateLogger<Startup>();
             Configuration.ChangeNlog();
@@ -98,12 +95,11 @@ namespace Wikiled.Sentiment.Service
             services.AddOptions();
 
             // Create the container builder.
-            var builder = new ContainerBuilder();
+            ContainerBuilder builder = new ContainerBuilder();
             SetupTestClient(builder);
             SetupOther(builder);
             builder.Populate(services);
-            var appContainer = builder.Build();
-
+            IContainer appContainer = builder.Build();
             logger.LogInformation("Ready!");
             // Create the IServiceProvider based on the container.
             return new AutofacServiceProvider(appContainer);
@@ -116,68 +112,26 @@ namespace Wikiled.Sentiment.Service
 
         private void SetupTestClient(ContainerBuilder builder)
         {
-            var configuration = new ConfigurationHandler();
+            ConfigurationHandler configuration = new ConfigurationHandler();
             configuration.SetConfiguration("resources", "resources");
             configuration.SetConfiguration("lexicons", "lexicons");
             configuration.StartingLocation = Env.ContentRootPath;
-            var resourcesPath = configuration.ResolvePath("Resources");
+            string resourcesPath = configuration.ResolvePath("Resources");
 
-            var url = Configuration["sentiment:resources"];
-            var urlLexicons = Configuration["sentiment:lexicons"];
-            var path = configuration.ResolvePath("lexicons");
+            string url = Configuration["sentiment:resources"];
+            string urlLexicons = Configuration["sentiment:lexicons"];
+            string path = configuration.ResolvePath("lexicons");
+
+            DataDownloader dataDownloader = new DataDownloader(loggerFactory);
             Task.WhenAll(
-                DownloadResources(resourcesPath, url),
-                Downloadlexicons(path, urlLexicons))
+                    dataDownloader.DownloadFile(new Uri(url), resourcesPath),
+                    dataDownloader.DownloadFile(new Uri(urlLexicons), path, true))
                 .Wait();
 
-            LexiconLoader loader = new LexiconLoader();
-            loader.Load(path);
-            builder.RegisterInstance(loader).As<ILexiconLoader>();
-
-            logger.LogInformation("Loading splitter...");
-            var cache = new MemoryCache(new MemoryCacheOptions());
-            var splitterHelper = new MainSplitterFactory(new LocalCacheFactory(cache), configuration).Create(POSTaggerType.SharpNLP);
-            ProcessingPipeline pipeline = new ProcessingPipeline(
-                TaskPoolScheduler.Default,
-                splitterHelper,
-                new ParsedReviewManagerFactory());
-            TestingClient client = new TestingClient(pipeline);
-            client.TrackArff = false;
-            // add limit of concurent processing
-            pipeline.ProcessingSemaphore = new SemaphoreSlim(200);
-
-            logger.LogInformation("Initializing testing client...");
-            client.Init();
-            builder.RegisterInstance(splitterHelper.Splitter);
-            builder.RegisterInstance(client);
+            logger.LogInformation("Adding Lexicons...");
+            builder.RegisterModule(new MainModule());
+            builder.RegisterModule(new ServiceModule(configuration) { Lexicons = path });
             builder.RegisterType<ReviewSink>().As<IReviewSink>();
-        }
-
-        private Task DownloadResources(string resourcesPath, string url)
-        {
-            logger.LogInformation("Setup resources - {0} from {1}", resourcesPath, url);
-            if (Directory.Exists(resourcesPath))
-            {
-                logger.LogInformation("Resources folder {0} found.", resourcesPath);
-                return Task.CompletedTask;
-            }
-
-            DataDownloader dataDownloader = new DataDownloader();
-            return dataDownloader.DownloadFile(new Uri(url), resourcesPath);
-        }
-
-        private Task Downloadlexicons(string path, string url)
-        {
-            logger.LogInformation("Setup lexicons - {0} from {1}", path, url);
-            if (Directory.Exists(path))
-            {
-                logger.LogInformation("Removing old lexicon folder - {0}", path);
-                Directory.Delete(path, true);
-            }
-
-            Directory.CreateDirectory(path);
-            DataDownloader dataDownloader = new DataDownloader();
-            return dataDownloader.DownloadFile(new Uri(url), path);
         }
     }
 }

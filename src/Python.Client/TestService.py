@@ -12,8 +12,8 @@ class SentimentAnalysis(object):
         self.documents = documents
         self.clean = clean
         self.domain = domain
-        self.host = 'sentiment.wikiled.com'
-        # self.host = 'localhost:63804'
+        # self.host = 'sentiment.wikiled.com'
+        self.host = 'localhost:63804'
         self.__load__()
         
         if domain is not None and domain.lower() not in [x.lower() for x in self.supported_domains]:
@@ -92,7 +92,7 @@ if __name__ == "__main__":
     row_id = 0
     documents = []
     sentiments = []
-    with open('g:/DataSets/Dataset.Market/laballed_twt_sample.csv', encoding='utf8') as file:
+    with open('h:/DataSets/Dataset.Market/laballed_twt_sample.csv', encoding='utf8') as file:
         reader = csv.reader(file)
         for row in reader:
             row_id += 1

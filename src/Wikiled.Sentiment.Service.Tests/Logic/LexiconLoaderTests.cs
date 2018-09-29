@@ -4,6 +4,7 @@ using System.Linq;
 using NUnit.Framework;
 using Wikiled.Sentiment.Service.Logic;
 using Wikiled.Sentiment.Service.Tests.Data;
+using Wikiled.Sentiment.Text.Parser;
 
 namespace Wikiled.Sentiment.Service.Tests.Logic
 {

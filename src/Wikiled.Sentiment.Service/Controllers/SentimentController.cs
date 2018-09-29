@@ -1,19 +1,19 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
+using System;
 using System.Linq;
 using System.Reactive.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using Wikiled.Common.Logging;
+using Wikiled.Sentiment.Analysis.Pipeline;
 using Wikiled.Sentiment.Analysis.Processing;
-using Wikiled.Sentiment.Analysis.Processing.Pipeline;
 using Wikiled.Sentiment.Api.Request;
 using Wikiled.Sentiment.Service.Logic;
 using Wikiled.Sentiment.Text.Parser;
 using Wikiled.Sentiment.Text.Sentiment;
-using Wikiled.Sentiment.Text.Structure;
 using Wikiled.Server.Core.ActionFilters;
 using Wikiled.Server.Core.Controllers;
 using Wikiled.Text.Analysis.Structure;
@@ -26,18 +26,22 @@ namespace Wikiled.Sentiment.Service.Controllers
     {
         private readonly IReviewSink reviewSink;
 
-        private readonly TestingClient client;
+        private readonly ITestingClient client;
 
         private readonly ILexiconLoader lexiconLoader;
 
-        private readonly IDocumentFromReviewFactory parsedFactory = new DocumentFromReviewFactory();
-
-        public SentimentController(ILoggerFactory factory, IReviewSink reviewSink, TestingClient client, ILexiconLoader lexiconLoader)
-        : base(factory)
+        public SentimentController(ILoggerFactory factory, IReviewSink reviewSink, ITestingClient client, ILexiconLoader lexiconLoader)
+            : base(factory)
         {
             this.reviewSink = reviewSink ?? throw new ArgumentNullException(nameof(reviewSink));
             this.client = client ?? throw new ArgumentNullException(nameof(client));
             this.lexiconLoader = lexiconLoader ?? throw new ArgumentNullException(nameof(lexiconLoader));
+
+            client.TrackArff = false;
+            client.UseBuiltInSentiment = true;
+            // add limit of concurrent processing
+            client.Pipeline.ProcessingSemaphore = new SemaphoreSlim(200);
+            client.Init();
         }
 
         [Route("domains")]
@@ -56,12 +60,12 @@ namespace Wikiled.Sentiment.Service.Controllers
                 review.Id = Guid.NewGuid().ToString();
             }
 
-            var result = client.Process(reviewSink.Reviews)
+            System.Reactive.Subjects.AsyncSubject<Document> result = client.Process(reviewSink.Reviews)
                 .Select(item => item.Processed)
                 .FirstOrDefaultAsync().GetAwaiter();
             reviewSink.AddReview(review, false);
             reviewSink.Completed();
-            var document = await result;
+            Document document = await result;
             return document;
         }
 
@@ -80,7 +84,7 @@ namespace Wikiled.Sentiment.Service.Controllers
                 throw new Exception("Too many documents. Maximum is 500");
             }
 
-            var monitor = new PerformanceMonitor(request.Documents.Length);
+            PerformanceMonitor monitor = new PerformanceMonitor(request.Documents.Length);
             using (Observable.Interval(TimeSpan.FromSeconds(10)).Subscribe(item => Logger.LogInformation(monitor.ToString())))
             {
                 ISentimentDataHolder loader = default;
@@ -95,10 +99,15 @@ namespace Wikiled.Sentiment.Service.Controllers
                     loader = lexiconLoader.GetLexicon(request.Domain);
                 }
 
-                var data = client.Process(reviewSink.Reviews);
-                var subscription = ProcessList(data, loader, monitor);
+                if (loader != null)
+                {
+                    client.Lexicon = loader;
+                }
 
-                foreach (var document in request.Documents)
+                IObservable<ProcessingContext> data = client.Process(reviewSink.Reviews);
+                Task subscription = ProcessList(data, monitor);
+
+                foreach (SingleRequestData document in request.Documents)
                 {
                     reviewSink.AddReview(document, request.CleanText);
                 }
@@ -111,26 +120,13 @@ namespace Wikiled.Sentiment.Service.Controllers
             Logger.LogInformation("Completed with final performance: {0}", monitor);
         }
 
-        private async Task ProcessList(IObservable<ProcessingContext> data, ISentimentDataHolder loader, PerformanceMonitor monitor)
+        private async Task ProcessList(IObservable<ProcessingContext> data, PerformanceMonitor monitor)
         {
-            var result = data.Select(
-                item =>
-                {
-                    if (loader != default)
-                    {
-                        LexiconRatingAdjustment adjustment = new LexiconRatingAdjustment(item.Review, loader);
-                        adjustment.CalculateRating();
-                        return parsedFactory.ReparseDocument(adjustment);
-                    }
-
-                    return item.Processed;
-                });
-
-            await result.Select(
+            await data.Select(
                             item =>
                             {
-                                var str = JsonConvert.SerializeObject(item);
-                                var buffer = Encoding.UTF8.GetBytes(str);
+                                string str = JsonConvert.SerializeObject(item.Processed);
+                                byte[] buffer = Encoding.UTF8.GetBytes(str);
                                 lock (Response.Body)
                                 {
                                     Response.Body.Write(buffer, 0, buffer.Length);
@@ -139,7 +135,7 @@ namespace Wikiled.Sentiment.Service.Controllers
                                 }
 
                                 monitor.Increment();
-                                return item;
+                                return item.Processed;
                             })
                         .LastOrDefaultAsync();
         }
