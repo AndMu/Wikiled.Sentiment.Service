@@ -12,8 +12,8 @@ class SentimentAnalysis(object):
         self.documents = documents
         self.clean = clean
         self.domain = domain
-        # self.host = 'sentiment.wikiled.com'
-        self.host = 'localhost:63804'
+        self.host = 'sentiment.wikiled.com'
+        # self.host = 'localhost:63804'
         self.__load__()
         
         if domain is not None and domain.lower() not in [x.lower() for x in self.supported_domains]:
