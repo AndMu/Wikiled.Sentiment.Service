@@ -2,7 +2,9 @@
 using System.Reactive.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Wikiled.Common.Net.Client;
+using Wikiled.MachineLearning.Mathematics;
 using Wikiled.Sentiment.Api.Request;
 using Wikiled.Text.Analysis.Structure;
 
@@ -14,16 +16,42 @@ namespace Wikiled.Sentiment.Api.Service
 
         private readonly WorkRequest request;
 
-        public SentimentAnalysis(IStreamApiClientFactory factory, WorkRequest request)
+        private ILogger<SentimentAnalysis> logger;
+
+        public SentimentAnalysis(ILogger<SentimentAnalysis> logger, IStreamApiClientFactory factory, WorkRequest request)
         {
             if (factory == null) throw new ArgumentNullException(nameof(factory));
             this.request = request ?? throw new ArgumentNullException(nameof(request));
+            this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
             client = factory.Contruct();
         }
 
         public Task<Document> Measure(string text, CancellationToken token)
         {
             return Measure(new SingleRequestData {Text = text}, token);
+        }
+
+        public async Task<double?> Measure(string text)
+        {
+            logger.LogDebug("Measure");
+            try
+            {
+                var result = await Measure(text, CancellationToken.None).ConfigureAwait(false);
+                if (result == null)
+                {
+                    logger.LogWarning("No meaningful response");
+                    return null;
+                }
+
+                logger.LogDebug("MeasureSentiment Calculated: {0}", result.Stars);
+                return result.Stars.HasValue ? RatingCalculator.ConvertToRaw(result.Stars.Value) : result.Stars;
+
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed sentiment processing");
+                return null;
+            }
         }
 
         public async Task<Document> Measure(SingleRequestData document, CancellationToken token)
