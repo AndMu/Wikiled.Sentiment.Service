@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Reactive.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,7 +17,7 @@ namespace Wikiled.Sentiment.Api.Service
 
         private readonly WorkRequest request;
 
-        private ILogger<SentimentAnalysis> logger;
+        private readonly ILogger<SentimentAnalysis> logger;
 
         public SentimentAnalysis(ILogger<SentimentAnalysis> logger, IStreamApiClientFactory factory, WorkRequest request)
         {
@@ -44,7 +45,7 @@ namespace Wikiled.Sentiment.Api.Service
                 }
 
                 logger.LogDebug("MeasureSentiment Calculated: {0}", result.Stars);
-                return result.Stars.HasValue ? RatingCalculator.ConvertToRaw(result.Stars.Value) : result.Stars;
+                return result.Stars.HasValue ? RatingCalculator.ConvertToRaw(result.Stars.Value) : null;
 
             }
             catch (Exception ex)
@@ -52,6 +53,17 @@ namespace Wikiled.Sentiment.Api.Service
                 logger.LogError(ex, "Failed sentiment processing");
                 return null;
             }
+        }
+
+        public IObservable<(string, double?)> Measure(string[] texts, CancellationToken token)
+        {
+            return Measure(texts.Select(item => new SingleRequestData {Text = item}).ToArray(), token)
+                .Select(
+                    item =>
+                    {
+                        var rating = item.Stars.HasValue ? RatingCalculator.ConvertToRaw(item.Stars.Value) : null;
+                        return (item.Id, rating);
+                    });
         }
 
         public async Task<Document> Measure(SingleRequestData document, CancellationToken token)
