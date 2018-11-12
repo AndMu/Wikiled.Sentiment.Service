@@ -16,6 +16,6 @@ namespace Wikiled.Sentiment.Api.Service
 
         Task<double?> Measure(string text);
 
-        IObservable<(string, double?)> Measure(string[] text, CancellationToken token);
+        IObservable<(string, double?)> Measure((string Id, string Text)[] items, CancellationToken token);
     }
 }

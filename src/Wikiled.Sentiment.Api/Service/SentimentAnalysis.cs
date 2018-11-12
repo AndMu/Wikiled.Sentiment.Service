@@ -55,9 +55,9 @@ namespace Wikiled.Sentiment.Api.Service
             }
         }
 
-        public IObservable<(string, double?)> Measure(string[] texts, CancellationToken token)
+        public IObservable<(string, double?)> Measure((string Id, string Text)[] items, CancellationToken token)
         {
-            return Measure(texts.Select(item => new SingleRequestData {Text = item}).ToArray(), token)
+            return Measure(items.Select(item => new SingleRequestData {Id = item.Id, Text = item.Text}).ToArray(), token)
                 .Select(
                     item =>
                     {

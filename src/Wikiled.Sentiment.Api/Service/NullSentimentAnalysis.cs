@@ -29,7 +29,7 @@ namespace Wikiled.Sentiment.Api.Service
             return Task.FromResult((double?)null);
         }
 
-        public IObservable<(string, double?)> Measure(string[] text, CancellationToken token)
+        public IObservable<(string, double?)> Measure((string Id, string Text)[] items, CancellationToken token)
         {
             return Observable.Empty<(string, double?)>();
         }
