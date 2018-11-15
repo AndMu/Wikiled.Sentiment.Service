@@ -26,8 +26,8 @@
     <PackageReference Include="Wikiled.Sentiment.Analysis" Version="3.2.63" />
     <packagereference Include="Microsoft.NET.Test.Sdk" Version="15.9.0"></packagereference>
     <packagereference Include="NUnit3TestAdapter" Version="3.11.0" />
-    <PackageReference Include="Wikiled.Server.Core" Version="1.2.10" />
-    <PackageReference Include="Wikiled.Server.Core.Testing" Version="1.2.10" />
+    <PackageReference Include="Wikiled.Server.Core" Version="1.2.11" />
+    <PackageReference Include="Wikiled.Server.Core.Testing" Version="1.2.11" />
   </ItemGroup>
 
   <ItemGroup>
