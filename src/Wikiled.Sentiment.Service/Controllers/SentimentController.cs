@@ -84,7 +84,7 @@ namespace Wikiled.Sentiment.Service.Controllers
                 throw new Exception("Too many documents. Maximum is 500");
             }
 
-            PerformanceMonitor monitor = new PerformanceMonitor(request.Documents.Length);
+            var monitor = new PerformanceMonitor(request.Documents.Length);
             using (Observable.Interval(TimeSpan.FromSeconds(10)).Subscribe(item => Logger.LogInformation(monitor.ToString())))
             {
                 ISentimentDataHolder loader = default;
@@ -125,12 +125,12 @@ namespace Wikiled.Sentiment.Service.Controllers
             await data.Select(
                             item =>
                             {
-                                string str = JsonConvert.SerializeObject(item.Processed);
-                                byte[] buffer = Encoding.UTF8.GetBytes(str);
+                                var str = JsonConvert.SerializeObject(item.Processed);
+                                var buffer = Encoding.UTF8.GetBytes(str);
                                 lock (Response.Body)
                                 {
                                     Response.Body.Write(buffer, 0, buffer.Length);
-                                    byte[] newline = Encoding.UTF8.GetBytes(Environment.NewLine);
+                                    var newline = Encoding.UTF8.GetBytes(Environment.NewLine);
                                     Response.Body.Write(newline, 0, newline.Length);
                                 }
 

@@ -6,15 +6,14 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
-using System.IO;
 using System.Reflection;
 using System.Threading.Tasks;
+using Wikiled.Common.Logging;
+using Wikiled.Common.Utilities.Config;
 using Wikiled.Common.Utilities.Resources;
 using Wikiled.Sentiment.Analysis.Containers;
-using Wikiled.Sentiment.Analysis.Processing;
 using Wikiled.Sentiment.Service.Hubs;
 using Wikiled.Sentiment.Service.Logic;
-using Wikiled.Sentiment.Text.Parser;
 using Wikiled.Sentiment.Text.Resources;
 using Wikiled.Server.Core.Errors;
 using Wikiled.Server.Core.Helpers;
@@ -30,6 +29,7 @@ namespace Wikiled.Sentiment.Service
 
         public Startup(ILoggerFactory loggerFactory, IHostingEnvironment env)
         {
+            ApplicationLogging.LoggerFactory = loggerFactory;
             IConfigurationBuilder builder = new ConfigurationBuilder()
                 .SetBasePath(env.ContentRootPath)
                 .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
@@ -54,11 +54,7 @@ namespace Wikiled.Sentiment.Service
             {
                 app.UseDeveloperExceptionPage();
             }
-            else
-            {
-                //app.UseHsts();
-            }
-
+       
             app.UseCors("CorsPolicy");
             app.UseSignalR((options) =>
             {
@@ -95,7 +91,7 @@ namespace Wikiled.Sentiment.Service
             services.AddOptions();
 
             // Create the container builder.
-            ContainerBuilder builder = new ContainerBuilder();
+            var builder = new ContainerBuilder();
             SetupTestClient(builder);
             SetupOther(builder);
             builder.Populate(services);
@@ -112,17 +108,17 @@ namespace Wikiled.Sentiment.Service
 
         private void SetupTestClient(ContainerBuilder builder)
         {
-            ConfigurationHandler configuration = new ConfigurationHandler();
+            var configuration = new ConfigurationHandler();
             configuration.SetConfiguration("resources", "resources");
             configuration.SetConfiguration("lexicons", "lexicons");
             configuration.StartingLocation = Env.ContentRootPath;
-            string resourcesPath = configuration.ResolvePath("Resources");
+            var resourcesPath = configuration.ResolvePath("Resources");
 
-            string url = Configuration["sentiment:resources"];
-            string urlLexicons = Configuration["sentiment:lexicons"];
-            string path = configuration.ResolvePath("lexicons");
+            var url = Configuration["sentiment:resources"];
+            var urlLexicons = Configuration["sentiment:lexicons"];
+            var path = configuration.ResolvePath("lexicons");
 
-            DataDownloader dataDownloader = new DataDownloader(loggerFactory);
+            var dataDownloader = new DataDownloader(loggerFactory);
             Task.WhenAll(
                     dataDownloader.DownloadFile(new Uri(url), resourcesPath),
                     dataDownloader.DownloadFile(new Uri(urlLexicons), path, true))

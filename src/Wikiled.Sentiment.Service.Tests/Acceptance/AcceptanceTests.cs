@@ -36,7 +36,7 @@ namespace Wikiled.Sentiment.Service.Tests.Acceptance
         [Test]
         public async Task Measure()
         {
-            SentimentAnalysis analysis = new SentimentAnalysis(
+            var analysis = new SentimentAnalysis(
                 new NullLogger<SentimentAnalysis>(), 
                 new StreamApiClientFactory(new NullLoggerFactory(), wrapper.Client, wrapper.Client.BaseAddress),
                 new WorkRequest

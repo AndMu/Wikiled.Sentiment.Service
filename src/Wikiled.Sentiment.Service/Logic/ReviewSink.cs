@@ -44,7 +44,7 @@ namespace Wikiled.Sentiment.Service.Logic
             }
 
             review.Text = doCleanup ? cleanup.Cleanup(review.Text) : review.Text;
-            SingleProcessingData data = new SingleProcessingData();
+            var data = new SingleProcessingData();
             data.Author = review.Author;
             data.Date = review.Date;
             data.Id = review.Id;

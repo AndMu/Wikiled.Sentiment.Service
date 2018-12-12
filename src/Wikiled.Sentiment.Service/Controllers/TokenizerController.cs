@@ -36,7 +36,7 @@ namespace Wikiled.Sentiment.Service.Controllers
                 review.Date = DateTime.UtcNow;
             }
 
-            Document document = new Document(review.Text);
+            var document = new Document(review.Text);
             document.Author = review.Author;
             document.Id = review.Id;
             document.DocumentTime = review.Date;
