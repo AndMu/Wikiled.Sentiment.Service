@@ -1,8 +1,7 @@
-# Sentiment service
+# .Net Web API Sentiment service
 
-.Net Web API Sentiment service, with [Docker support](https://hub.docker.com/r/wikiled/sentiment/)
-
-Based on [pSenti](https://github.com/AndMu/Wikiled.Sentiment)
+* Sentiment service, with [Docker support](https://hub.docker.com/r/wikiled/sentiment/)
+* Based on [pSenti GitHub project](https://github.com/AndMu/Wikiled.Sentiment)
 
 ## Concept-Level Domain Sentiment Analysis System
 
