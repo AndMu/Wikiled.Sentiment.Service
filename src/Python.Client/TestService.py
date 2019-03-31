@@ -1,8 +1,6 @@
 import json
 import uuid
-import csv
 from requests import Session
-from sklearn import metrics
 
 
 class SentimentAnalysis(object):
@@ -74,49 +72,17 @@ class SentimentAnalysis(object):
 
 
 if __name__ == "__main__":
-    # documents = ['I like this bool :)', 'short it baby']
-    # # with standard lexicon
-    # sentiment = SentimentAnalysis(documents)
-    # for result in sentiment:
-    #     print(result)
-    #
-    # dictionary = {}
-    # dictionary['like'] = -1
-    # dictionary['BOOL'] = 1
-    #
-    # # with custom lexicon and Twitter type cleaning
-    # sentiment = SentimentAnalysis(documents, dictionary, clean=True)
-    # for result in sentiment:
-    #     print(result)
+    documents = ['I like this bool :)', 'short it baby']
+    # with standard lexicon
+    sentiment = SentimentAnalysis(documents)
+    for result in sentiment:
+        print(result)
 
-    row_id = 0
-    documents = []
-    sentiments = []
-    with open('h:/DataSets/Dataset.Market/laballed_twt_sample.csv', encoding='utf8') as file:
-        reader = csv.reader(file)
-        for row in reader:
-            row_id += 1
-            if row_id == 1:
-                continue
-            #if row_id > 2:
-            #    break
+    dictionary = {}
+    dictionary['like'] = -1
+    dictionary['BOOL'] = 1
 
-            text = row[1]
-            if row[2] == 'positive':
-                sentiments.append(1)
-            else:
-                sentiments.append(-1)
-            documents.append(text)
-
-    result_class = [0] * len(documents)
-    sentiment_analysis = SentimentAnalysis(documents, domain='TwitterMarket')
-    y_actual = []
-    y_result = []
-    for result in sentiment_analysis:
-        result_class[result[0]] = result[1]
-        if result[1] != 0:
-            y_actual.append(sentiments[result[0]])
-            y_result.append(result[1])
-
-    report = metrics.classification_report(y_actual, y_result, digits=3)
-    print('\n{}'.format(report))
+    # with custom lexicon and Twitter type cleaning
+    sentiment = SentimentAnalysis(documents, dictionary, clean=True)
+    for result in sentiment:
+        print(result)
