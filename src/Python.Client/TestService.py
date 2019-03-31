@@ -83,6 +83,6 @@ if __name__ == "__main__":
     dictionary['BOOL'] = 1
 
     # with custom lexicon and Twitter type cleaning
-    sentiment = SentimentAnalysis(documents, dictionary, clean=True)
+    sentiment = SentimentAnalysis(documents, dictionary, domain='market', clean=True)
     for result in sentiment:
         print(result)
