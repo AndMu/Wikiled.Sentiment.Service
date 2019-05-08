@@ -125,8 +125,8 @@ namespace Wikiled.Sentiment.Service
                 .Wait();
 
             logger.LogInformation("Adding Lexicons...");
-            builder.RegisterModule(new MainModule());
-            builder.RegisterModule(new ServiceModule(configuration) { Lexicons = path });
+            builder.RegisterModule(new SentimentMainModule());
+            builder.RegisterModule(new SentimentServiceModule(configuration) { Lexicons = path });
             builder.RegisterType<ReviewSink>().As<IReviewSink>();
         }
     }

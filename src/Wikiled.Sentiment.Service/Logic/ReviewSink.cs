@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Reactive.Subjects;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Wikiled.Sentiment.Api.Request;
 using Wikiled.Sentiment.Text.Data.Review;
@@ -10,7 +12,7 @@ namespace Wikiled.Sentiment.Service.Logic
 {
     public class ReviewSink : IReviewSink
     {
-        private ILogger<ReviewSink> logger;
+        private readonly ILogger<ReviewSink> logger;
 
         private readonly Subject<IParsedDocumentHolder> reviews = new Subject<IParsedDocumentHolder>();
 
@@ -29,9 +31,11 @@ namespace Wikiled.Sentiment.Service.Logic
             this.splitter = splitter ?? throw new ArgumentNullException(nameof(splitter));
         }
 
+        public SemaphoreSlim ProcessingSemaphore { get; set; }
+
         public IObservable<IParsedDocumentHolder> Reviews => reviews;
 
-        public void AddReview(SingleRequestData review, bool doCleanup)
+        public async Task AddReview(SingleRequestData review, bool doCleanup)
         {
             if (review.Date == null)
             {
@@ -41,6 +45,11 @@ namespace Wikiled.Sentiment.Service.Logic
             if (review.Id == null)
             {
                 review.Id = Guid.NewGuid().ToString();
+            }
+
+            if (ProcessingSemaphore != null)
+            {
+                await ProcessingSemaphore.WaitAsync().ConfigureAwait(false);
             }
 
             review.Text = doCleanup ? cleanup.Cleanup(review.Text) : review.Text;

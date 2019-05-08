@@ -40,7 +40,7 @@ namespace Wikiled.Sentiment.Service.Controllers
             client.TrackArff = false;
             client.UseBuiltInSentiment = true;
             // add limit of concurrent processing
-            client.Pipeline.ProcessingSemaphore = new SemaphoreSlim(200);
+            reviewSink.ProcessingSemaphore = new SemaphoreSlim(200);
             client.Init();
         }
 
@@ -63,7 +63,7 @@ namespace Wikiled.Sentiment.Service.Controllers
             System.Reactive.Subjects.AsyncSubject<Document> result = client.Process(reviewSink.Reviews)
                 .Select(item => item.Processed)
                 .FirstOrDefaultAsync().GetAwaiter();
-            reviewSink.AddReview(review, false);
+            await reviewSink.AddReview(review, false).ConfigureAwait(false);
             reviewSink.Completed();
             Document document = await result;
             return document;
@@ -109,7 +109,7 @@ namespace Wikiled.Sentiment.Service.Controllers
 
                 foreach (SingleRequestData document in request.Documents)
                 {
-                    reviewSink.AddReview(document, request.CleanText);
+                    await reviewSink.AddReview(document, request.CleanText).ConfigureAwait(false);
                 }
 
                 reviewSink.Completed();
@@ -134,6 +134,7 @@ namespace Wikiled.Sentiment.Service.Controllers
                                     Response.Body.Write(newline, 0, newline.Length);
                                 }
 
+                                reviewSink.ProcessingSemaphore?.Release();
                                 monitor.Increment();
                                 return item.Processed;
                             })
