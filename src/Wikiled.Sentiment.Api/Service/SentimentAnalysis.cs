@@ -24,7 +24,7 @@ namespace Wikiled.Sentiment.Api.Service
             if (factory == null) throw new ArgumentNullException(nameof(factory));
             this.request = request ?? throw new ArgumentNullException(nameof(request));
             this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            client = factory.Contruct();
+            client = factory.Construct();
         }
 
         public Task<Document> Measure(string text, CancellationToken token)
