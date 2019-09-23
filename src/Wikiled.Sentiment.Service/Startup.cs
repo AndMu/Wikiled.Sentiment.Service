@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Reflection;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Hosting;
 using Wikiled.Common.Logging;
 using Wikiled.Common.Utilities.Modules;
 using Wikiled.Common.Utilities.Resources;
@@ -25,7 +26,7 @@ namespace Wikiled.Sentiment.Service
 
         private readonly ILoggerFactory loggerFactory;
 
-        public Startup(ILoggerFactory loggerFactory, IHostingEnvironment env)
+        public Startup(ILoggerFactory loggerFactory, IWebHostEnvironment env)
         {
             ApplicationLogging.LoggerFactory = loggerFactory;
             IConfigurationBuilder builder = new ConfigurationBuilder()
@@ -43,10 +44,10 @@ namespace Wikiled.Sentiment.Service
 
         public IConfigurationRoot Configuration { get; }
 
-        public IHostingEnvironment Env { get; }
+        public IWebHostEnvironment Env { get; }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
             if (env.IsDevelopment())
             {
@@ -54,22 +55,15 @@ namespace Wikiled.Sentiment.Service
             }
        
             app.UseCors("CorsPolicy");
-            app.UseSignalR((options) =>
-            {
-                options.MapHub<SentimentHub>("/Sentiment");
-            });
 
-            //app.UseHttpsRedirection();
             app.UseRequestLogging();
             app.UseExceptionHandlingMiddleware();
             app.UseHttpStatusCodeExceptionMiddleware();
-            app.UseMvc();
         }
 
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddSignalR();
             // Needed to add this section, and....
             services.AddCors(
                 options =>
@@ -78,8 +72,7 @@ namespace Wikiled.Sentiment.Service
                         "CorsPolicy",
                         itemBuider => itemBuider.AllowAnyOrigin()
                                                 .AllowAnyMethod()
-                                                .AllowAnyHeader()
-                                                .AllowCredentials());
+                                                .AllowAnyHeader());
                 });
 
             // Add framework services.
