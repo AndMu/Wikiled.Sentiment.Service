@@ -1,6 +1,4 @@
-﻿using Autofac;
-using Autofac.Extensions.DependencyInjection;
-using Microsoft.AspNetCore.Builder;
+﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,7 +7,7 @@ using System;
 using System.Reflection;
 using System.Threading.Tasks;
 using Wikiled.Common.Logging;
-using Wikiled.Common.Utilities.Config;
+using Wikiled.Common.Utilities.Modules;
 using Wikiled.Common.Utilities.Resources;
 using Wikiled.Sentiment.Analysis.Containers;
 using Wikiled.Sentiment.Service.Hubs;
@@ -69,7 +67,7 @@ namespace Wikiled.Sentiment.Service
         }
 
         // This method gets called by the runtime. Use this method to add services to the container.
-        public IServiceProvider ConfigureServices(IServiceCollection services)
+        public void ConfigureServices(IServiceCollection services)
         {
             services.AddSignalR();
             // Needed to add this section, and....
@@ -91,22 +89,18 @@ namespace Wikiled.Sentiment.Service
             services.AddOptions();
 
             // Create the container builder.
-            var builder = new ContainerBuilder();
-            SetupTestClient(builder);
-            SetupOther(builder);
-            builder.Populate(services);
-            IContainer appContainer = builder.Build();
+            SetupTestClient(services);
+            SetupOther(services);
             logger.LogInformation("Ready!");
             // Create the IServiceProvider based on the container.
-            return new AutofacServiceProvider(appContainer);
         }
 
-        private void SetupOther(ContainerBuilder builder)
+        private void SetupOther(IServiceCollection builder)
         {
-            builder.RegisterType<IpResolve>().As<IIpResolve>();
+            builder.AddTransient<IIpResolve, IpResolve>();
         }
 
-        private void SetupTestClient(ContainerBuilder builder)
+        private void SetupTestClient(IServiceCollection builder)
         {
             var configuration = new ConfigurationHandler();
             configuration.SetConfiguration("resources", "resources");
@@ -127,7 +121,7 @@ namespace Wikiled.Sentiment.Service
             logger.LogInformation("Adding Lexicons...");
             builder.RegisterModule(new SentimentMainModule());
             builder.RegisterModule(new SentimentServiceModule(configuration) { Lexicons = path });
-            builder.RegisterType<ReviewSink>().As<IReviewSink>();
+            builder.AddTransient<IReviewSink, ReviewSink>();
         }
     }
 }
