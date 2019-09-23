@@ -11,7 +11,6 @@ using Wikiled.Common.Logging;
 using Wikiled.Common.Utilities.Modules;
 using Wikiled.Common.Utilities.Resources;
 using Wikiled.Sentiment.Analysis.Containers;
-using Wikiled.Sentiment.Service.Hubs;
 using Wikiled.Sentiment.Service.Logic;
 using Wikiled.Sentiment.Text.Resources;
 using Wikiled.Server.Core.Errors;
@@ -56,9 +55,15 @@ namespace Wikiled.Sentiment.Service
        
             app.UseCors("CorsPolicy");
 
+            app.UseRouting();
             app.UseRequestLogging();
             app.UseExceptionHandlingMiddleware();
             app.UseHttpStatusCodeExceptionMiddleware();
+
+            app.UseEndpoints(endpoints =>
+            {
+                endpoints.MapControllerRoute("default", "{controller=Home}/{action=Index}/{id?}");
+            });
         }
 
         // This method gets called by the runtime. Use this method to add services to the container.
@@ -76,7 +81,8 @@ namespace Wikiled.Sentiment.Service
                 });
 
             // Add framework services.
-            services.AddMvc(options => { });
+            services.AddControllers();
+
 
             // needed to load configuration from appsettings.json
             services.AddOptions();
