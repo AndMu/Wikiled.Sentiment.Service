@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using Wikiled.Sentiment.Service.Logic;
 using Wikiled.Sentiment.Service.Tests.Data;
@@ -58,7 +59,7 @@ namespace Wikiled.Sentiment.Service.Tests.Logic
 
         private LexiconLoader CreateInstance()
         {
-            return new LexiconLoader();
+            return new LexiconLoader(new NullLogger<ContextWordsDataLoader>());
         }
     }
 }

@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Reactive.Concurrency;
 using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
@@ -11,6 +12,7 @@ using Wikiled.Common.Logging;
 using Wikiled.Common.Utilities.Modules;
 using Wikiled.Common.Utilities.Resources;
 using Wikiled.Sentiment.Analysis.Containers;
+using Wikiled.Sentiment.Analysis.Processing;
 using Wikiled.Sentiment.Service.Logic;
 using Wikiled.Sentiment.Text.Resources;
 using Wikiled.Server.Core.Errors;
@@ -46,7 +48,7 @@ namespace Wikiled.Sentiment.Service
         public IWebHostEnvironment Env { get; }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IServiceProvider provider)
         {
             if (env.IsDevelopment())
             {
@@ -64,6 +66,8 @@ namespace Wikiled.Sentiment.Service
             {
                 endpoints.MapControllerRoute("default", "{controller=Home}/{action=Index}/{id?}");
             });
+
+            var client = provider.GetService<ITestingClient>();
         }
 
         // This method gets called by the runtime. Use this method to add services to the container.
@@ -83,7 +87,6 @@ namespace Wikiled.Sentiment.Service
             // Add framework services.
             services.AddControllers();
 
-
             // needed to load configuration from appsettings.json
             services.AddOptions();
 
@@ -94,7 +97,7 @@ namespace Wikiled.Sentiment.Service
             // Create the IServiceProvider based on the container.
         }
 
-        private void SetupOther(IServiceCollection builder)
+        private static void SetupOther(IServiceCollection builder)
         {
             builder.AddTransient<IIpResolve, IpResolve>();
         }
@@ -118,6 +121,7 @@ namespace Wikiled.Sentiment.Service
                 .Wait();
 
             logger.LogInformation("Adding Lexicons...");
+            builder.AddSingleton<IScheduler>(TaskPoolScheduler.Default);
             builder.RegisterModule(new SentimentMainModule());
             builder.RegisterModule(new SentimentServiceModule(configuration) { Lexicons = path });
             builder.AddTransient<IReviewSink, ReviewSink>();
