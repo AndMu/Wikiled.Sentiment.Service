@@ -66,8 +66,6 @@ namespace Wikiled.Sentiment.Service
             {
                 endpoints.MapControllerRoute("default", "{controller=Home}/{action=Index}/{id?}");
             });
-
-            var client = provider.GetService<ITestingClient>();
         }
 
         // This method gets called by the runtime. Use this method to add services to the container.

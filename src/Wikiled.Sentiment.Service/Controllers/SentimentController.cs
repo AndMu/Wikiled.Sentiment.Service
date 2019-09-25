@@ -30,6 +30,8 @@ namespace Wikiled.Sentiment.Service.Controllers
 
         private readonly ILexiconLoader lexiconLoader;
 
+        private readonly SemaphoreSlim syncRoot = new SemaphoreSlim(1);
+
         public SentimentController(ILoggerFactory factory, IReviewSink reviewSink, ITestingClient client, ILexiconLoader lexiconLoader)
             : base(factory)
         {
@@ -122,23 +124,39 @@ namespace Wikiled.Sentiment.Service.Controllers
 
         private async Task ProcessList(IObservable<ProcessingContext> data, PerformanceMonitor monitor)
         {
-            await data.Select(
-                            item =>
-                            {
-                                var str = JsonConvert.SerializeObject(item.Processed);
-                                var buffer = Encoding.UTF8.GetBytes(str);
-                                lock (Response.Body)
-                                {
-                                    Response.Body.Write(buffer, 0, buffer.Length);
-                                    var newline = Encoding.UTF8.GetBytes(Environment.NewLine);
-                                    Response.Body.Write(newline, 0, newline.Length);
-                                }
+            await data.Select(item => SendItem(monitor, item))
+                      .Merge()
+                      .LastOrDefaultAsync();
+        }
 
-                                reviewSink.ProcessingSemaphore?.Release();
-                                monitor.Increment();
-                                return item.Processed;
-                            })
-                        .LastOrDefaultAsync();
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Globalization", "CA1303:Do not pass literals as localized parameters", Justification = "<Pending>")]
+        private async Task<Document> SendItem(PerformanceMonitor monitor, ProcessingContext item)
+        {
+            try
+            {
+                var str = JsonConvert.SerializeObject(item.Processed);
+                var buffer = Encoding.UTF8.GetBytes(str);
+                using (var tokenSource = new CancellationTokenSource(TimeSpan.FromMinutes(10)))
+                {
+                    await syncRoot.WaitAsync(tokenSource.Token).ConfigureAwait(false);
+                    await Response.Body.WriteAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
+                    var newline = Encoding.UTF8.GetBytes(Environment.NewLine);
+                    await Response.Body.WriteAsync(newline, 0, newline.Length).ConfigureAwait(false);
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.LogError(e, "Failed");
+                throw;
+            }
+            finally
+            {
+                reviewSink.ProcessingSemaphore?.Release();
+                syncRoot.Release();
+                monitor.Increment();
+            }
+
+            return item.Processed;
         }
     }
 }

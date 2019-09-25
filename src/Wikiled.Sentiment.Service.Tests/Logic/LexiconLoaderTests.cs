@@ -59,7 +59,7 @@ namespace Wikiled.Sentiment.Service.Tests.Logic
 
         private LexiconLoader CreateInstance()
         {
-            return new LexiconLoader(new NullLogger<ContextWordsDataLoader>());
+            return new LexiconLoader(new NullLogger<LexiconLoader>());
         }
     }
 }
