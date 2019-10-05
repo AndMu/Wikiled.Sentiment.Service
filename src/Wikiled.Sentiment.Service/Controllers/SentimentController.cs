@@ -139,9 +139,9 @@ namespace Wikiled.Sentiment.Service.Controllers
                 using (var tokenSource = new CancellationTokenSource(TimeSpan.FromMinutes(10)))
                 {
                     await syncRoot.WaitAsync(tokenSource.Token).ConfigureAwait(false);
-                    await Response.Body.WriteAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
+                    await Response.Body.WriteAsync(buffer, 0, buffer.Length, tokenSource.Token).ConfigureAwait(false);
                     var newline = Encoding.UTF8.GetBytes(Environment.NewLine);
-                    await Response.Body.WriteAsync(newline, 0, newline.Length).ConfigureAwait(false);
+                    await Response.Body.WriteAsync(newline, 0, newline.Length, tokenSource.Token).ConfigureAwait(false);
                 }
             }
             catch (Exception e)
