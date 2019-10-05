@@ -1,18 +1,18 @@
-﻿using Autofac;
-using Autofac.Extensions.DependencyInjection;
-using Microsoft.AspNetCore.Builder;
+﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Reactive.Concurrency;
 using System.Reflection;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Hosting;
 using Wikiled.Common.Logging;
-using Wikiled.Common.Utilities.Config;
+using Wikiled.Common.Utilities.Modules;
 using Wikiled.Common.Utilities.Resources;
 using Wikiled.Sentiment.Analysis.Containers;
-using Wikiled.Sentiment.Service.Hubs;
+using Wikiled.Sentiment.Analysis.Processing;
 using Wikiled.Sentiment.Service.Logic;
 using Wikiled.Sentiment.Text.Resources;
 using Wikiled.Server.Core.Errors;
@@ -27,7 +27,7 @@ namespace Wikiled.Sentiment.Service
 
         private readonly ILoggerFactory loggerFactory;
 
-        public Startup(ILoggerFactory loggerFactory, IHostingEnvironment env)
+        public Startup(ILoggerFactory loggerFactory, IWebHostEnvironment env)
         {
             ApplicationLogging.LoggerFactory = loggerFactory;
             IConfigurationBuilder builder = new ConfigurationBuilder()
@@ -45,10 +45,10 @@ namespace Wikiled.Sentiment.Service
 
         public IConfigurationRoot Configuration { get; }
 
-        public IHostingEnvironment Env { get; }
+        public IWebHostEnvironment Env { get; }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IServiceProvider provider)
         {
             if (env.IsDevelopment())
             {
@@ -56,22 +56,21 @@ namespace Wikiled.Sentiment.Service
             }
        
             app.UseCors("CorsPolicy");
-            app.UseSignalR((options) =>
-            {
-                options.MapHub<SentimentHub>("/Sentiment");
-            });
 
-            //app.UseHttpsRedirection();
+            app.UseRouting();
             app.UseRequestLogging();
             app.UseExceptionHandlingMiddleware();
             app.UseHttpStatusCodeExceptionMiddleware();
-            app.UseMvc();
+
+            app.UseEndpoints(endpoints =>
+            {
+                endpoints.MapControllerRoute("default", "{controller=Home}/{action=Index}/{id?}");
+            });
         }
 
         // This method gets called by the runtime. Use this method to add services to the container.
-        public IServiceProvider ConfigureServices(IServiceCollection services)
+        public void ConfigureServices(IServiceCollection services)
         {
-            services.AddSignalR();
             // Needed to add this section, and....
             services.AddCors(
                 options =>
@@ -80,33 +79,28 @@ namespace Wikiled.Sentiment.Service
                         "CorsPolicy",
                         itemBuider => itemBuider.AllowAnyOrigin()
                                                 .AllowAnyMethod()
-                                                .AllowAnyHeader()
-                                                .AllowCredentials());
+                                                .AllowAnyHeader());
                 });
 
             // Add framework services.
-            services.AddMvc(options => { });
+            services.AddControllers();
 
             // needed to load configuration from appsettings.json
             services.AddOptions();
 
             // Create the container builder.
-            var builder = new ContainerBuilder();
-            SetupTestClient(builder);
-            SetupOther(builder);
-            builder.Populate(services);
-            IContainer appContainer = builder.Build();
+            SetupTestClient(services);
+            SetupOther(services);
             logger.LogInformation("Ready!");
             // Create the IServiceProvider based on the container.
-            return new AutofacServiceProvider(appContainer);
         }
 
-        private void SetupOther(ContainerBuilder builder)
+        private static void SetupOther(IServiceCollection builder)
         {
-            builder.RegisterType<IpResolve>().As<IIpResolve>();
+            builder.AddTransient<IIpResolve, IpResolve>();
         }
 
-        private void SetupTestClient(ContainerBuilder builder)
+        private void SetupTestClient(IServiceCollection builder)
         {
             var configuration = new ConfigurationHandler();
             configuration.SetConfiguration("resources", "resources");
@@ -125,9 +119,10 @@ namespace Wikiled.Sentiment.Service
                 .Wait();
 
             logger.LogInformation("Adding Lexicons...");
+            builder.AddSingleton<IScheduler>(TaskPoolScheduler.Default);
             builder.RegisterModule(new SentimentMainModule());
             builder.RegisterModule(new SentimentServiceModule(configuration) { Lexicons = path });
-            builder.RegisterType<ReviewSink>().As<IReviewSink>();
+            builder.AddTransient<IReviewSink, ReviewSink>();
         }
     }
 }

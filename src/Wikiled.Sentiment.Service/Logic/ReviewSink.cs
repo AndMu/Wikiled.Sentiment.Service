@@ -10,7 +10,7 @@ using Wikiled.Text.Analysis.Twitter;
 
 namespace Wikiled.Sentiment.Service.Logic
 {
-    public class ReviewSink : IReviewSink
+    public sealed class ReviewSink : IReviewSink
     {
         private readonly ILogger<ReviewSink> logger;
 
@@ -37,6 +37,11 @@ namespace Wikiled.Sentiment.Service.Logic
 
         public async Task AddReview(SingleRequestData review, bool doCleanup)
         {
+            if (review == null)
+            {
+                throw new ArgumentNullException(nameof(review));
+            }
+
             if (review.Date == null)
             {
                 review.Date = DateTime.Now;
