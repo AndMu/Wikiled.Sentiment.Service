@@ -8,12 +8,16 @@ using System.Reactive.Concurrency;
 using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
+using MQTTnet;
+using MQTTnet.AspNetCore;
+using MQTTnet.Client.Receiving;
+using MQTTnet.Server;
 using Wikiled.Common.Logging;
 using Wikiled.Common.Utilities.Modules;
 using Wikiled.Common.Utilities.Resources;
 using Wikiled.Sentiment.Analysis.Containers;
-using Wikiled.Sentiment.Analysis.Processing;
 using Wikiled.Sentiment.Service.Logic;
+using Wikiled.Sentiment.Service.Services;
 using Wikiled.Sentiment.Text.Resources;
 using Wikiled.Server.Core.Errors;
 using Wikiled.Server.Core.Helpers;
@@ -61,11 +65,14 @@ namespace Wikiled.Sentiment.Service
             app.UseRequestLogging();
             app.UseExceptionHandlingMiddleware();
             app.UseHttpStatusCodeExceptionMiddleware();
+            app.UseMqttEndpoint();
 
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllerRoute("default", "{controller=Home}/{action=Index}/{id?}");
             });
+
+            app.UseMqttServer(server => app.ApplicationServices.GetRequiredService<SentimentService>().ConfigureMqttServer(server));
         }
 
         // This method gets called by the runtime. Use this method to add services to the container.
@@ -91,8 +98,21 @@ namespace Wikiled.Sentiment.Service
             // Create the container builder.
             SetupTestClient(services);
             SetupOther(services);
-            logger.LogInformation("Ready!");
-            // Create the IServiceProvider based on the container.
+            ConfigureMqttServices(services);
+        }
+
+        private void ConfigureMqttServices(IServiceCollection services)
+        {
+            services.AddSingleton<SentimentService>();
+
+            //this adds a hosted mqtt server to the services
+            services.AddHostedMqttServer(builder => builder.WithDefaultEndpointPort(1883));
+
+            //this adds tcp server support based on System.Net.Socket
+            services.AddMqttTcpServerAdapter();
+
+            //this adds websocket support
+            services.AddMqttWebSocketServerAdapter();
         }
 
         private static void SetupOther(IServiceCollection builder)

@@ -3,13 +3,14 @@ import uuid
 from requests import Session
 from sklearn.preprocessing import OneHotEncoder
 
-data = pd.
-enc = OneHotEncoder(handle_unknown='ignore')
-data['Embarked'].dropna(inplace=True)
-X = data['Embarked'].values.reshape(-1,1)
-one_hot_encoded = enc.fit_transform(X)
-data['Embarked'] = one_hot_encoded
-data['Embarked']
+import paho.mqtt.client as mqtt
+
+broker_url = "localhost"
+broker_port = 1883
+
+client = mqtt.Client()
+connection = client.connect(broker_url, broker_port)
+print(connection)
 
 class SentimentAnalysis(object):
 
