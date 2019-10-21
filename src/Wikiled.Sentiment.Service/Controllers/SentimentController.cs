@@ -19,23 +19,19 @@ namespace Wikiled.Sentiment.Service.Controllers
     [TypeFilter(typeof(RequestValidationAttribute))]
     public class SentimentController : BaseController
     {
-        private readonly IReviewSink reviewSink;
-
         private readonly ITestingClient client;
 
         private readonly ILexiconLoader lexiconLoader;
 
-        public SentimentController(ILoggerFactory factory, IReviewSink reviewSink, ITestingClient client, ILexiconLoader lexiconLoader)
+        public SentimentController(ILoggerFactory factory, ITestingClient client, ILexiconLoader lexiconLoader)
             : base(factory)
         {
-            this.reviewSink = reviewSink ?? throw new ArgumentNullException(nameof(reviewSink));
             this.client = client ?? throw new ArgumentNullException(nameof(client));
             this.lexiconLoader = lexiconLoader ?? throw new ArgumentNullException(nameof(lexiconLoader));
 
             client.TrackArff = false;
             client.UseBuiltInSentiment = true;
             // add limit of concurrent processing
-            reviewSink.ProcessingSemaphore = new SemaphoreSlim(200);
             client.Init();
         }
 
@@ -60,15 +56,15 @@ namespace Wikiled.Sentiment.Service.Controllers
                 review.Id = Guid.NewGuid().ToString();
             }
 
-            System.Reactive.Subjects.AsyncSubject<Document> result = client.Process(reviewSink.Reviews)
-                .Select(item => item.Processed)
-                .FirstOrDefaultAsync().GetAwaiter();
-            await reviewSink.AddReview(review, false).ConfigureAwait(false);
-            reviewSink.Completed();
-            Document document = await result;
-            return document;
-        }
 
-       
+            //System.Reactive.Subjects.AsyncSubject<Document> result = client.Process(review)
+            //    .Select(item => item.Processed)
+            //    .FirstOrDefaultAsync().GetAwaiter();
+            //await reviewSink.AddReview(review, false).ConfigureAwait(false);
+            //reviewSink.Completed();
+            //Document document = await result;
+            //return document;
+            throw new NotImplementedException();
+        }
     }
 }

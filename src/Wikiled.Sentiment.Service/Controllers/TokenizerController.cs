@@ -40,7 +40,7 @@ namespace Wikiled.Sentiment.Service.Controllers
             document.Author = review.Author;
             document.Id = review.Id;
             document.DocumentTime = review.Date;
-            var result = await splitter.Process(new ParseRequest(document));
+            var result = await splitter.Process(new ParseRequest(document)).ConfigureAwait(false);
             return result;
         }
     }

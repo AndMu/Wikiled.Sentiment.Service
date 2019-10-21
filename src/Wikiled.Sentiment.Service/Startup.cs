@@ -8,15 +8,13 @@ using System.Reactive.Concurrency;
 using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
-using MQTTnet;
 using MQTTnet.AspNetCore;
-using MQTTnet.Client.Receiving;
-using MQTTnet.Server;
 using Wikiled.Common.Logging;
 using Wikiled.Common.Utilities.Modules;
 using Wikiled.Common.Utilities.Resources;
 using Wikiled.Sentiment.Analysis.Containers;
 using Wikiled.Sentiment.Service.Logic;
+using Wikiled.Sentiment.Service.Logic.Topics;
 using Wikiled.Sentiment.Service.Services;
 using Wikiled.Sentiment.Text.Resources;
 using Wikiled.Server.Core.Errors;
@@ -103,6 +101,7 @@ namespace Wikiled.Sentiment.Service
 
         private void ConfigureMqttServices(IServiceCollection services)
         {
+            services.AddSingleton<ITopicProcessing, SentimentAnalysisTopic>();
             services.AddSingleton<SentimentService>();
 
             //this adds a hosted mqtt server to the services
@@ -142,7 +141,6 @@ namespace Wikiled.Sentiment.Service
             builder.AddSingleton<IScheduler>(TaskPoolScheduler.Default);
             builder.RegisterModule(new SentimentMainModule());
             builder.RegisterModule(new SentimentServiceModule(configuration) { Lexicons = path });
-            builder.AddTransient<IReviewSink, ReviewSink>();
         }
     }
 }
