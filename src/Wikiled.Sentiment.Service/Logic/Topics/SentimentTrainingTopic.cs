@@ -1,14 +1,19 @@
 ﻿using MQTTnet;
 using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Reactive.Concurrency;
 using System.Reactive.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using MQTTnet.Protocol;
 using MQTTnet.Server;
 using Wikiled.Common.Logging;
 using Wikiled.Common.Utilities.Serialization;
 using Wikiled.Sentiment.Analysis.Containers;
+using Wikiled.Sentiment.Analysis.Pipeline;
 using Wikiled.Sentiment.Api.Request;
 using Wikiled.Sentiment.Service.Logic.Storage;
 using Wikiled.Sentiment.Text.Parser;
@@ -18,7 +23,7 @@ namespace Wikiled.Sentiment.Service.Logic.Topics
 {
     public class SentimentTrainingTopic : ITopicProcessing
     {
-        private IDocumentStorage storage;
+        private readonly IDocumentStorage storage;
 
         private readonly IJsonSerializer serializer;
 
@@ -82,10 +87,26 @@ namespace Wikiled.Sentiment.Service.Logic.Topics
 
                     var documents = storage.Load(message.ClientId, request.Name).Select(item => converter.Convert(item, request.CleanText));
 
-                    await client.Train(documents);
+                    await client.Train(documents).ConfigureAwait(false);
                 }
 
                 logger.LogInformation("Completed with final performance: {0}", monitor);
+            }
+        }
+
+        private async Task<IList<ProcessingContext>> NotifyCompletion(string userId, IList<ProcessingContext> item)
+        {
+            var reply = new MqttApplicationMessage();
+            reply.QualityOfServiceLevel = MqttQualityOfServiceLevel.AtMostOnce;
+            reply.Topic = $"Sentiment/Result/{userId}";
+            await using (var memoryStream = new MemoryStream())
+            {
+                var stream = serializer.Serialize(item.Select(x => x.Processed).ToArray());
+                await stream.CopyToAsync(memoryStream).ConfigureAwait(false);
+                reply.Payload = memoryStream.ToArray();
+                var sendResult = await server.PublishAsync(applicationMessage: reply).ConfigureAwait(false);
+                logger.LogDebug("Sent: {0}", sendResult.ReasonCode);
+                return item;
             }
         }
     }

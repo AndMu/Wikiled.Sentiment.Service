@@ -1,20 +1,17 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MQTTnet;
-using MQTTnet.Protocol;
-using MQTTnet.Server;
 using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Linq;
+using System.Reactive;
 using System.Reactive.Concurrency;
 using System.Reactive.Linq;
 using System.Threading.Tasks;
 using Wikiled.Common.Logging;
 using Wikiled.Common.Utilities.Serialization;
 using Wikiled.Sentiment.Analysis.Containers;
-using Wikiled.Sentiment.Analysis.Pipeline;
 using Wikiled.Sentiment.Api.Request;
+using Wikiled.Sentiment.Service.Logic.Notifications;
 using Wikiled.Sentiment.Text.Parser;
 using Wikiled.Sentiment.Text.Sentiment;
 
@@ -28,25 +25,25 @@ namespace Wikiled.Sentiment.Service.Logic.Topics
 
         private readonly ILexiconLoader lexiconLoader;
 
-        private readonly IMqttServer server;
-
         private readonly IScheduler scheduler;
 
         private readonly IServiceProvider provider;
+
+        private readonly INotificationsHandler notifications;
 
         public SentimentAnalysisTopic(
             ILogger<SentimentAnalysisTopic> logger,
             IJsonSerializer serializer,
             ILexiconLoader lexiconLoader,
-            IMqttServer server,
             IScheduler scheduler,
-            IServiceProvider provider)
+            IServiceProvider provider,
+            INotificationsHandler notifications)
         {
             this.serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
             this.lexiconLoader = lexiconLoader ?? throw new ArgumentNullException(nameof(lexiconLoader));
-            this.server = server ?? throw new ArgumentNullException(nameof(server));
             this.scheduler = scheduler ?? throw new ArgumentNullException(nameof(scheduler));
-            this.provider = provider;
+            this.provider = provider ?? throw new ArgumentNullException(nameof(provider));
+            this.notifications = notifications ?? throw new ArgumentNullException(nameof(notifications));
             this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -99,27 +96,15 @@ namespace Wikiled.Sentiment.Service.Logic.Topics
 
                     await client.Process(request.Documents.Select(item => converter.Convert(item, request.CleanText)).ToObservable())
                                 .Buffer(TimeSpan.FromSeconds(5), 10, scheduler)
-                                .Select(item => ProcessResult(message.ClientId, item))
+                                .Select(async item =>
+                                {
+                                    await notifications.PublishResults(message.ClientId, item).ConfigureAwait(false);
+                                    return Unit.Default;
+                                })
                                 .Merge();
                 }
 
                 logger.LogInformation("Completed with final performance: {0}", monitor);
-            }
-        }
-
-        private async Task<IList<ProcessingContext>> ProcessResult(string userId, IList<ProcessingContext> item)
-        {
-            var reply = new MqttApplicationMessage();
-            reply.QualityOfServiceLevel = MqttQualityOfServiceLevel.AtMostOnce;
-            reply.Topic = $"Sentiment/Result/{userId}";
-            await using (var memoryStream = new MemoryStream())
-            {
-                var stream = serializer.Serialize(item.Select(x => x.Processed).ToArray());
-                await stream.CopyToAsync(memoryStream).ConfigureAwait(false);
-                reply.Payload = memoryStream.ToArray();
-                var sendResult = await server.PublishAsync(applicationMessage: reply).ConfigureAwait(false);
-                logger.LogDebug("Sent: {0}", sendResult.ReasonCode);
-                return item;
             }
         }
     }
