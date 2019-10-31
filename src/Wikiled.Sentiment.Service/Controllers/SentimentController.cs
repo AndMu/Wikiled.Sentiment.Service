@@ -3,7 +3,6 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Linq;
 using System.Reactive.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using Wikiled.Sentiment.Analysis.Processing;
 using Wikiled.Sentiment.Api.Request;
@@ -23,11 +22,14 @@ namespace Wikiled.Sentiment.Service.Controllers
 
         private readonly ILexiconLoader lexiconLoader;
 
-        public SentimentController(ILoggerFactory factory, ITestingClient client, ILexiconLoader lexiconLoader)
+        private readonly IDocumentConverter documentConverter;
+
+        public SentimentController(ILoggerFactory factory, ITestingClient client, ILexiconLoader lexiconLoader, IDocumentConverter documentConverter)
             : base(factory)
         {
             this.client = client ?? throw new ArgumentNullException(nameof(client));
             this.lexiconLoader = lexiconLoader ?? throw new ArgumentNullException(nameof(lexiconLoader));
+            this.documentConverter = documentConverter;
 
             client.TrackArff = false;
             client.UseBuiltInSentiment = true;
@@ -44,7 +46,7 @@ namespace Wikiled.Sentiment.Service.Controllers
 
         [Route("parse")]
         [HttpPost]
-        public async Task<Document> Parse([FromBody]SingleRequestData review)
+        public async Task<ActionResult<Document>> Parse([FromBody]SingleRequestData review)
         {
             if (review == null)
             {
@@ -56,15 +58,8 @@ namespace Wikiled.Sentiment.Service.Controllers
                 review.Id = Guid.NewGuid().ToString();
             }
 
-
-            //System.Reactive.Subjects.AsyncSubject<Document> result = client.Process(review)
-            //    .Select(item => item.Processed)
-            //    .FirstOrDefaultAsync().GetAwaiter();
-            //await reviewSink.AddReview(review, false).ConfigureAwait(false);
-            //reviewSink.Completed();
-            //Document document = await result;
-            //return document;
-            throw new NotImplementedException();
+            var result = await client.Process(documentConverter.Convert(review, true)).ConfigureAwait(false);
+            return Ok(result.Processed);
         }
     }
 }

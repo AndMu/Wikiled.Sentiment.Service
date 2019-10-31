@@ -7,7 +7,7 @@ using NLog.Web;
 
 namespace Wikiled.Sentiment.Service
 {
-    public class Program
+    public static class Program
     {
         public static void Main(string[] args)
         {

@@ -7,6 +7,6 @@ namespace Wikiled.Sentiment.Service.Logic.Topics
     {
         string Topic { get; }
 
-        Task Process(MqttApplicationMessage message);
+        Task Process(MqttApplicationMessageReceivedEventArgs message);
     }
 }

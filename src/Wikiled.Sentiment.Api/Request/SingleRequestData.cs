@@ -11,5 +11,7 @@ namespace Wikiled.Sentiment.Api.Request
         public string Id { get; set; }
 
         public string Text { get; set; }
+
+        public bool IsPositive { get; set; }
     }
 }

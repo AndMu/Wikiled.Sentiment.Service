@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Wikiled.Sentiment.Api.Request;
+using Wikiled.Sentiment.Text.Extensions;
 using Wikiled.Sentiment.Text.Parser;
 using Wikiled.Server.Core.ActionFilters;
 using Wikiled.Server.Core.Controllers;
@@ -41,7 +42,7 @@ namespace Wikiled.Sentiment.Service.Controllers
             document.Id = review.Id;
             document.DocumentTime = review.Date;
             var result = await splitter.Process(new ParseRequest(document)).ConfigureAwait(false);
-            return result;
+            return result.Construct(null);
         }
     }
 }

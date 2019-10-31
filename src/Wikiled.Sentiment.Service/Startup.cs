@@ -9,17 +9,21 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using MQTTnet.AspNetCore;
+using MQTTnet.Protocol;
 using Wikiled.Common.Logging;
 using Wikiled.Common.Utilities.Modules;
 using Wikiled.Common.Utilities.Resources;
 using Wikiled.Sentiment.Analysis.Containers;
+using Wikiled.Sentiment.Analysis.Processing;
 using Wikiled.Sentiment.Service.Logic;
+using Wikiled.Sentiment.Service.Logic.Storage;
 using Wikiled.Sentiment.Service.Logic.Topics;
 using Wikiled.Sentiment.Service.Services;
 using Wikiled.Sentiment.Text.Resources;
 using Wikiled.Server.Core.Errors;
 using Wikiled.Server.Core.Helpers;
 using Wikiled.Server.Core.Middleware;
+using Wikiled.Text.Analysis.Cache;
 
 namespace Wikiled.Sentiment.Service
 {
@@ -101,11 +105,23 @@ namespace Wikiled.Sentiment.Service
 
         private void ConfigureMqttServices(IServiceCollection services)
         {
-            services.AddSingleton<ITopicProcessing, SentimentAnalysisTopic>();
-            services.AddSingleton<SentimentService>();
-
             //this adds a hosted mqtt server to the services
-            services.AddHostedMqttServer(builder => builder.WithDefaultEndpointPort(1883));
+            services.AddHostedMqttServer(
+                builder =>
+                {
+                    builder.WithDefaultEndpointPort(1883);
+                    builder.WithConnectionValidator(
+                        c =>
+                        {
+                            if (c.ClientId.Length < 10)
+                            {
+                                c.ReasonCode = MqttConnectReasonCode.ClientIdentifierNotValid;
+                                return;
+                            }
+
+                            c.ReasonCode = MqttConnectReasonCode.Success;
+                        });
+                });
 
             //this adds tcp server support based on System.Net.Socket
             services.AddMqttTcpServerAdapter();
@@ -138,9 +154,23 @@ namespace Wikiled.Sentiment.Service
                 .Wait();
 
             logger.LogInformation("Adding Lexicons...");
-            builder.AddSingleton<IScheduler>(TaskPoolScheduler.Default);
+            builder.RegisterModule<CommonModule>();
+            SetupSentiment(builder, configuration, path);
+        }
+
+        private static void SetupSentiment(IServiceCollection builder, ConfigurationHandler configuration, string path)
+        {
             builder.RegisterModule(new SentimentMainModule());
-            builder.RegisterModule(new SentimentServiceModule(configuration) { Lexicons = path });
+            builder.RegisterModule(new SentimentServiceModule(configuration) {Lexicons = path});
+            
+            builder.AddSingleton<IDocumentStorage, SimpleDocumentStorage>();
+            builder.AddScoped<IDocumentConverter, DocumentConverter>();
+
+            builder.AddSingleton<ITopicProcessing, SentimentAnalysisTopic>();
+            builder.AddSingleton<ITopicProcessing, DocumentSaveTopic>();
+            builder.AddSingleton<ITopicProcessing, SentimentTrainingTopic>();
+
+            builder.AddSingleton<SentimentService>();
         }
     }
 }

@@ -1,12 +1,19 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using MQTTnet;
+using MQTTnet.Protocol;
+using MQTTnet.Server;
 using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Reactive.Concurrency;
 using System.Reactive.Linq;
 using System.Threading.Tasks;
 using Wikiled.Common.Logging;
 using Wikiled.Common.Utilities.Serialization;
-using Wikiled.Sentiment.Analysis.Processing;
+using Wikiled.Sentiment.Analysis.Containers;
+using Wikiled.Sentiment.Analysis.Pipeline;
 using Wikiled.Sentiment.Api.Request;
 using Wikiled.Sentiment.Text.Parser;
 using Wikiled.Sentiment.Text.Sentiment;
@@ -19,28 +26,40 @@ namespace Wikiled.Sentiment.Service.Logic.Topics
 
         private readonly ILogger<SentimentAnalysisTopic> logger;
 
-        private readonly Func<ITestingClient> clientFactory;
-
         private readonly ILexiconLoader lexiconLoader;
 
-        public SentimentAnalysisTopic(ILogger<SentimentAnalysisTopic> logger, IJsonSerializer serializer, Func<ITestingClient> client, ILexiconLoader lexiconLoader)
+        private readonly IMqttServer server;
+
+        private readonly IScheduler scheduler;
+
+        private readonly IServiceProvider provider;
+
+        public SentimentAnalysisTopic(
+            ILogger<SentimentAnalysisTopic> logger,
+            IJsonSerializer serializer,
+            ILexiconLoader lexiconLoader,
+            IMqttServer server,
+            IScheduler scheduler,
+            IServiceProvider provider)
         {
-            this.serializer = serializer;
-            clientFactory = client;
-            this.lexiconLoader = lexiconLoader;
+            this.serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
+            this.lexiconLoader = lexiconLoader ?? throw new ArgumentNullException(nameof(lexiconLoader));
+            this.server = server ?? throw new ArgumentNullException(nameof(server));
+            this.scheduler = scheduler ?? throw new ArgumentNullException(nameof(scheduler));
+            this.provider = provider;
             this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         public string Topic => TopicConstants.SentimentAnalysis;
 
-        public async Task Process(MqttApplicationMessage message)
+        public async Task Process(MqttApplicationMessageReceivedEventArgs message)
         {
             if (message == null)
             {
                 throw new ArgumentNullException(nameof(message));
             }
 
-            var request = serializer.Deserialize<WorkRequest>(message.Payload);
+            var request = serializer.Deserialize<WorkRequest>(message.ApplicationMessage.Payload);
             if (request?.Documents == null)
             {
                 return;
@@ -66,18 +85,42 @@ namespace Wikiled.Sentiment.Service.Logic.Topics
                     loader = lexiconLoader.GetLexicon(request.Domain);
                 }
 
-                var client = clientFactory();
-                client.Init();
-                if (loader != null)
+                using (var scope = provider.CreateScope())
                 {
-                    client.Lexicon = loader;
+                    var container = scope.ServiceProvider.GetService<ISessionContainer>();
+                    var client = container.GetTesting();
+                    var converter = scope.ServiceProvider.GetService<IDocumentConverter>();
+                    client.Init();
+                    client.Pipeline.ResetMonitor();
+                    if (loader != null)
+                    {
+                        client.Lexicon = loader;
+                    }
+
+                    await client.Process(request.Documents.Select(item => converter.Convert(item, request.CleanText)).ToObservable())
+                                .Buffer(TimeSpan.FromSeconds(5), 10, scheduler)
+                                .Select(item => ProcessResult(message.ClientId, item))
+                                .Merge();
                 }
 
-                await client.Process(request.Documents.ToObservable())
-                            .ForEachAsync(item => {});
+                logger.LogInformation("Completed with final performance: {0}", monitor);
             }
+        }
 
-            logger.LogInformation("Completed with final performance: {0}", monitor);
+        private async Task<IList<ProcessingContext>> ProcessResult(string userId, IList<ProcessingContext> item)
+        {
+            var reply = new MqttApplicationMessage();
+            reply.QualityOfServiceLevel = MqttQualityOfServiceLevel.AtMostOnce;
+            reply.Topic = $"Sentiment/Result/{userId}";
+            await using (var memoryStream = new MemoryStream())
+            {
+                var stream = serializer.Serialize(item.Select(x => x.Processed).ToArray());
+                await stream.CopyToAsync(memoryStream).ConfigureAwait(false);
+                reply.Payload = memoryStream.ToArray();
+                var sendResult = await server.PublishAsync(applicationMessage: reply).ConfigureAwait(false);
+                logger.LogDebug("Sent: {0}", sendResult.ReasonCode);
+                return item;
+            }
         }
     }
 }

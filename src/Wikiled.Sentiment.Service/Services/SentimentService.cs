@@ -3,6 +3,7 @@ using MQTTnet;
 using MQTTnet.Client.Receiving;
 using MQTTnet.Server;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Wikiled.Sentiment.Service.Logic.Topics;
@@ -15,7 +16,7 @@ namespace Wikiled.Sentiment.Service.Services
 
         private readonly ILookup<string, ITopicProcessing> topicProcessings;
 
-        public SentimentService(ILogger<SentimentService> logger, ITopicProcessing[] topics)
+        public SentimentService(ILogger<SentimentService> logger, IEnumerable<ITopicProcessing> topics)
         {
             this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
             topicProcessings = topics.ToLookup(item => item.Topic, item => item, StringComparer.OrdinalIgnoreCase);
@@ -58,21 +59,24 @@ namespace Wikiled.Sentiment.Service.Services
 
             logger.LogDebug("Handling message: {0}", eventArgs.ClientId);
 
-            if (eventArgs.ProcessingFailed)
+            try
             {
-                logger.LogWarning("Processing message failed: {0}", eventArgs.ClientId);
-                return;
+                if (topicProcessings.Contains(eventArgs.ApplicationMessage.Topic))
+                {
+                    eventArgs.ProcessingFailed = true;
+                    var tasks = topicProcessings[eventArgs.ApplicationMessage.Topic]
+                        .Select(item => item.Process(eventArgs));
+                    await Task.WhenAll(tasks).ConfigureAwait(false);
+                }
+                else
+                {
+                    logger.LogWarning("Unknown Topic: {0}({1})", eventArgs.ApplicationMessage.Topic, eventArgs.ClientId);
+                }
             }
-
-            if (topicProcessings.Contains(eventArgs.ApplicationMessage.Topic))
+            catch (Exception e)
             {
-                var tasks = topicProcessings[eventArgs.ApplicationMessage.Topic]
-                            .Select(item => item.Process(eventArgs.ApplicationMessage));
-                await Task.WhenAll(tasks).ConfigureAwait(false);
-            }
-            else
-            {
-                logger.LogWarning("Unknown Topic: {0}({1})", eventArgs.ApplicationMessage.Topic, eventArgs.ClientId);
+                eventArgs.ProcessingFailed = true;
+                logger.LogError(e, "Error");
             }
         }
 
