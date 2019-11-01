@@ -3,11 +3,13 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Wikiled.Common.Testing.Utilities.Logging;
 using Wikiled.Common.Utilities.Serialization;
 using Wikiled.Sentiment.Service.Logic.Notifications;
 using Wikiled.Common.Testing.Utilities.Reflection;
+using Wikiled.Sentiment.Analysis.Pipeline;
 
 namespace Wikiled.Sentiment.Service.Tests.Logic.Notifications
 {
@@ -37,15 +39,8 @@ namespace Wikiled.Sentiment.Service.Tests.Logic.Notifications
         [Test]
         public async Task PublishResults()
         {
-            string userId = null;
-            IList item = null;
-
-            await instance.PublishResults(
-                userId,
-                item);
-
-            Assert.Fail();
-        }
+            await instance.PublishResults("Test", new List<ProcessingContext>());
+            Assert.Fail();}
 
         [Test]
         public async Task SendError()
@@ -53,9 +48,7 @@ namespace Wikiled.Sentiment.Service.Tests.Logic.Notifications
             string userId = null;
             string message = null;
 
-            await instance.SendError(
-                userId,
-                message);
+            await instance.SendError(userId, message);
 
             Assert.Fail();
         }

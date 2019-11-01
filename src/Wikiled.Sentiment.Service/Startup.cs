@@ -19,6 +19,7 @@ using Wikiled.Sentiment.Service.Logic;
 using Wikiled.Sentiment.Service.Logic.Storage;
 using Wikiled.Sentiment.Service.Logic.Topics;
 using Wikiled.Sentiment.Service.Services;
+using Wikiled.Sentiment.Text.MachineLearning;
 using Wikiled.Sentiment.Text.Resources;
 using Wikiled.Server.Core.Errors;
 using Wikiled.Server.Core.Helpers;
@@ -160,6 +161,8 @@ namespace Wikiled.Sentiment.Service
 
         private static void SetupSentiment(IServiceCollection builder, ConfigurationHandler configuration, string path)
         {
+            Classifier.Options = new ParallelOptions();
+            Classifier.Options.MaxDegreeOfParallelism = 2;
             builder.RegisterModule(new SentimentMainModule());
             builder.RegisterModule(new SentimentServiceModule(configuration) {Lexicons = path});
             

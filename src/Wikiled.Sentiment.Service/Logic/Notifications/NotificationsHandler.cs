@@ -1,15 +1,17 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using MQTTnet;
 using MQTTnet.Protocol;
 using MQTTnet.Server;
+using System;
+using System.Buffers;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using Microsoft.IO;
 using Wikiled.Common.Utilities.Serialization;
 using Wikiled.Sentiment.Analysis.Pipeline;
-using Wikiled.Sentiment.Service.Logic.Topics;
 
 namespace Wikiled.Sentiment.Service.Logic.Notifications
 {
@@ -21,11 +23,14 @@ namespace Wikiled.Sentiment.Service.Logic.Notifications
 
         private readonly IJsonSerializer serializer;
 
-        public NotificationsHandler(ILogger<NotificationsHandler> logger, IMqttServer server, IJsonSerializer serializer)
+        private readonly RecyclableMemoryStreamManager memoryStreamManager;
+
+        public NotificationsHandler(ILogger<NotificationsHandler> logger, IMqttServer server, IJsonSerializer serializer, RecyclableMemoryStreamManager memoryStreamManager)
         {
             this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
             this.server = server ?? throw new ArgumentNullException(nameof(server));
             this.serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
+            this.memoryStreamManager = memoryStreamManager ?? throw new ArgumentNullException(nameof(memoryStreamManager));
         }
 
         public async Task PublishResults(string userId, IList<ProcessingContext> item)
@@ -40,27 +45,33 @@ namespace Wikiled.Sentiment.Service.Logic.Notifications
                 throw new ArgumentNullException(nameof(item));
             }
 
-            var reply = new MqttApplicationMessage();
-            reply.QualityOfServiceLevel = MqttQualityOfServiceLevel.AtMostOnce;
-            reply.Topic = $"Sentiment/Result/{userId}";
-            await using (var memoryStream = new MemoryStream())
+            await using (var memoryStream = memoryStreamManager.GetStream("Json"))
             {
                 var stream = serializer.Serialize(item.Select(x => x.Processed).ToArray());
                 await stream.CopyToAsync(memoryStream).ConfigureAwait(false);
-                reply.Payload = memoryStream.ToArray();
-                var sendResult = await server.PublishAsync(applicationMessage: reply).ConfigureAwait(false);
-                logger.LogDebug("Sent: {0}", sendResult.ReasonCode);
+                await Send($"Sentiment/Result/{userId}", memoryStream.ToArray()).ConfigureAwait(false);
             }
         }
 
-        public Task SendError(string userId, string message)
+        public async Task SendError(string userId, string message)
         {
-            throw new NotImplementedException();
+            ArrayPool<>
+            Encoding.ASCII.get
         }
 
         public Task SendMessage(string userId, string message)
         {
             throw new NotImplementedException();
+        }
+
+        private async Task Send(string topic, byte[] data)
+        {
+            var reply = new MqttApplicationMessage();
+            reply.QualityOfServiceLevel = MqttQualityOfServiceLevel.AtMostOnce;
+            reply.Topic = topic;
+            reply.Payload = data;
+            var sendResult = await server.PublishAsync(applicationMessage: reply).ConfigureAwait(false);
+            logger.LogDebug("Sent: {0}", sendResult.ReasonCode);
         }
     }
 }
