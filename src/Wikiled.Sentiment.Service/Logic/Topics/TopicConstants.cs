@@ -10,6 +10,8 @@
 
         public const string SentimentSave= "Sentiment/Save";
 
-        public const string SentimentTrainingDone = "Sentiment/Trained";
+        public const string Error = "Error";
+
+        public const string Progress = "Progress";
     }
 }

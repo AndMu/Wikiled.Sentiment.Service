@@ -6,6 +6,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Wikiled.Sentiment.Service.Logic.Allocation;
+using Wikiled.Sentiment.Service.Logic.Notifications;
 using Wikiled.Sentiment.Service.Logic.Topics;
 
 namespace Wikiled.Sentiment.Service.Services
@@ -16,9 +18,15 @@ namespace Wikiled.Sentiment.Service.Services
 
         private readonly ILookup<string, ITopicProcessing> topicProcessings;
 
-        public SentimentService(ILogger<SentimentService> logger, IEnumerable<ITopicProcessing> topics)
+        private readonly INotificationsHandler notifications;
+
+        private readonly IResourcesHandler resourcesHandler;
+
+        public SentimentService(ILogger<SentimentService> logger, IEnumerable<ITopicProcessing> topics, INotificationsHandler notifications, IResourcesHandler resourcesHandler)
         {
             this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            this.notifications = notifications ?? throw new ArgumentNullException(nameof(notifications));
+            this.resourcesHandler = resourcesHandler ?? throw new ArgumentNullException(nameof(resourcesHandler));
             topicProcessings = topics.ToLookup(item => item.Topic, item => item, StringComparer.OrdinalIgnoreCase);
         }
 
@@ -57,10 +65,22 @@ namespace Wikiled.Sentiment.Service.Services
                 throw new ArgumentNullException(nameof(eventArgs));
             }
 
+            if (eventArgs.ClientId == null)
+            {
+                return;
+            }
+
             logger.LogDebug("Handling message: {0}", eventArgs.ClientId);
 
             try
             {
+                var allocation = await resourcesHandler.Allocate(eventArgs.ClientId).ConfigureAwait(false);
+                if (!allocation)
+                {
+                    await notifications.SendUserMessage(eventArgs.ClientId, TopicConstants.Error, "Failed to allocate resources for training").ConfigureAwait(false);
+                    return;
+                }
+
                 if (topicProcessings.Contains(eventArgs.ApplicationMessage.Topic))
                 {
                     eventArgs.ProcessingFailed = true;
@@ -76,7 +96,13 @@ namespace Wikiled.Sentiment.Service.Services
             catch (Exception e)
             {
                 eventArgs.ProcessingFailed = true;
+                await notifications.SendUserMessage(eventArgs.ClientId, TopicConstants.Error, e.Message).ConfigureAwait(false);
                 logger.LogError(e, "Error");
+            }
+            finally
+            {
+                resourcesHandler.Release(eventArgs.ClientId);
+                await notifications.SendUserMessage(eventArgs.ClientId, TopicConstants.SentimentAnalysisResult, $"{eventArgs.ApplicationMessage.Topic} Done").ConfigureAwait(false);
             }
         }
 

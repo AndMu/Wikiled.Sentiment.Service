@@ -4,7 +4,7 @@ namespace Wikiled.Sentiment.Service.Logic.Allocation
 {
     public interface IResourcesHandler
     {
-        Task<bool> AllocateTraining(string userId);
+        Task<bool> Allocate(string userId);
 
         void Release(string userId);
     }

@@ -48,6 +48,9 @@ class SentimentAnalysis(object):
         batch_request_documents = []
         self.client.loop_start()  # start the loop
         sic = self.client.subscribe("Sentiment/Result/UserOneUserOneUserOne", qos=0)
+        sic = self.client.subscribe("Sentiment/Result/UserOneUserOneUserOne", qos=0)
+        sic = self.client.subscribe("Error/UserOneUserOneUserOne", qos=0)
+        sic = self.client.subscribe("Message/UserOneUserOneUserOne", qos=0)
 
         for document in self.documents:
             id = str(uuid.uuid4())
@@ -67,7 +70,8 @@ class SentimentAnalysis(object):
             save['Name'] = 'Test'
 
             self.client.publish('Sentiment/Save', json.dumps(save, indent=2))
-            self.client.publish('Sentiment/Analysis', self.process_on_server(batch_request_documents))
+            self.client.publish('Sentiment/Train')
+            # self.client.publish('Sentiment/Analysis', self.process_on_server(batch_request_documents))
             # yield from self.process_on_server(batch_request_documents, processed_ids)
 
         time.sleep(40)

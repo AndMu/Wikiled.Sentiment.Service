@@ -16,6 +16,8 @@ using Wikiled.Common.Utilities.Resources;
 using Wikiled.Sentiment.Analysis.Containers;
 using Wikiled.Sentiment.Analysis.Processing;
 using Wikiled.Sentiment.Service.Logic;
+using Wikiled.Sentiment.Service.Logic.Allocation;
+using Wikiled.Sentiment.Service.Logic.Notifications;
 using Wikiled.Sentiment.Service.Logic.Storage;
 using Wikiled.Sentiment.Service.Logic.Topics;
 using Wikiled.Sentiment.Service.Services;
@@ -165,7 +167,10 @@ namespace Wikiled.Sentiment.Service
             Classifier.Options.MaxDegreeOfParallelism = 2;
             builder.RegisterModule(new SentimentMainModule());
             builder.RegisterModule(new SentimentServiceModule(configuration) {Lexicons = path});
-            
+
+            builder.AddSingleton<INotificationsHandler, NotificationsHandler>();
+            builder.AddSingleton<IResourcesHandler, ResourcesHandler>();
+
             builder.AddSingleton<IDocumentStorage, SimpleDocumentStorage>();
             builder.AddScoped<IDocumentConverter, DocumentConverter>();
 

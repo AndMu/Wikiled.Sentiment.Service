@@ -1,23 +1,23 @@
-﻿using MQTTnet;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using MQTTnet;
+using MQTTnet.Protocol;
+using MQTTnet.Server;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reactive.Concurrency;
 using System.Reactive.Linq;
 using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using MQTTnet.Protocol;
-using MQTTnet.Server;
 using Wikiled.Common.Logging;
 using Wikiled.Common.Utilities.Serialization;
 using Wikiled.Sentiment.Analysis.Containers;
 using Wikiled.Sentiment.Analysis.Pipeline;
 using Wikiled.Sentiment.Api.Request;
+using Wikiled.Sentiment.Service.Logic.Allocation;
+using Wikiled.Sentiment.Service.Logic.Notifications;
 using Wikiled.Sentiment.Service.Logic.Storage;
 using Wikiled.Sentiment.Text.Parser;
-using Wikiled.Sentiment.Text.Sentiment;
 
 namespace Wikiled.Sentiment.Service.Logic.Topics
 {
@@ -46,16 +46,16 @@ namespace Wikiled.Sentiment.Service.Logic.Topics
             this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
             this.serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
             this.storage = storage ?? throw new ArgumentNullException(nameof(storage));
-            this.server = server;
-            this.lexiconLoader = lexiconLoader;
-            this.provider = provider;
+            this.server = server ?? throw new ArgumentNullException(nameof(server));
+            this.lexiconLoader = lexiconLoader ?? throw new ArgumentNullException(nameof(lexiconLoader));
+            this.provider = provider ?? throw new ArgumentNullException(nameof(provider));
         }
 
         public string Topic => TopicConstants.SentimentTraining;
 
         public async Task Process(MqttApplicationMessageReceivedEventArgs message)
         {
-            if (message == null)
+            if (message?.ClientId == null)
             {
                 throw new ArgumentNullException(nameof(message));
             }
