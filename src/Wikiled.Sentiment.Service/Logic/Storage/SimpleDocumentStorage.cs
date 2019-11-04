@@ -23,22 +23,23 @@ namespace Wikiled.Sentiment.Service.Logic.Storage
             this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        public async Task Save(string client, SaveRequest request)
+        public async Task Save(SaveRequest request)
         {
-            if (client == null)
-            {
-                throw new ArgumentNullException(nameof(client));
-            }
-
             if (request == null)
             {
                 throw new ArgumentNullException(nameof(request));
             }
 
-            var directory = GetLocation(client, request.Name);
+            var directory = GetLocation(request.User, request.Name);
             directory.EnsureDirectoryExistence();
             var output = Path.Combine(directory, $"{DateTime.UtcNow.ToString("yyyyMMddHHhhmmssffff", CultureInfo.InvariantCulture)}.zip");
             await serializer.SerializeJsonZip(request.Documents, output).ConfigureAwait(false);
+        }
+
+        public int Count(string client, string name)
+        {
+            var files = Directory.GetFiles(GetLocation(client, name), ".zip");
+            return files.Length;
         }
 
         public string GetLocation(string client, string name, string type = "documents")

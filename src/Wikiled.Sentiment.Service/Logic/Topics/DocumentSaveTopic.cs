@@ -48,7 +48,7 @@ namespace Wikiled.Sentiment.Service.Logic.Topics
                 throw new Exception("Name not specified");
             }
 
-            await storage.Save(message.ClientId, request).ConfigureAwait(false);
+            await storage.Save(request).ConfigureAwait(false);
         }
     }
 }

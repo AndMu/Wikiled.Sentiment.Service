@@ -16,28 +16,43 @@ namespace Wikiled.Sentiment.Service.Controllers
     {
         private readonly IDocumentStorage storage;
 
-        public DocumentsController(ILoggerFactory factory)
+        public DocumentsController(ILoggerFactory factory, IDocumentStorage storage)
             : base(factory)
         {
+            this.storage = storage ?? throw new ArgumentNullException(nameof(storage));
         }
 
 
         [Route("save")]
         [HttpPost]
-        public async Task<ActionResult<Document>> Parse([FromBody]SingleRequestData[] review)
+        public async Task<ActionResult<Document>> Parse([FromBody] SaveRequest save)
         {
-            if (review == null)
+            if (save == null)
             {
-                throw new ArgumentNullException(nameof(review));
+                throw new ArgumentNullException(nameof(save));
             }
 
-            if (review.Id == null)
+            await storage.Save(save).ConfigureAwait(false);
+
+            return Ok();
+        }
+
+        [Route("save/{userId}/{name}")]
+        [HttpGet]
+        public ActionResult<int> Check(string userId, string name)
+        {
+            if (userId == null)
             {
-                review.Id = Guid.NewGuid().ToString();
+                throw new ArgumentNullException(nameof(userId));
             }
 
-            var result = await client.Process(documentConverter.Convert(review, true)).ConfigureAwait(false);
-            return Ok(result.Processed);
+            if (name == null)
+            {
+                throw new ArgumentNullException(nameof(name));
+            }
+
+            var count = storage.Count(userId, name);
+            return Ok(count);
         }
     }
 }
