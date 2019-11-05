@@ -7,84 +7,79 @@ from sklearn.preprocessing import OneHotEncoder
 import paho.mqtt.client as mqtt
 
 
-class SentimentAnalysis(object):
+class SentimentConnection(object):
 
-    def __init__(self, documents, lexicon=None, domain=None, clean=False):
-        self.lexicon = lexicon
-        self.documents = documents
-        self.clean = clean
-        self.domain = domain
+    def __init__(self, clientId):
+        if clientId is None or len(clientId) < 10:
+            raise ValueError('Client id is too short. Minimum 10 symbols')
+        self.clientId = clientId
         self.host = 'sentiment.wikiled.com'
         # self.host = 'localhost:63804'
 
         broker_url = "localhost"
         broker_port = 1883
 
-        self.client = mqtt.Client(client_id='UserOneUserOneUserOne')
-        connection = self.client.connect(broker_url, broker_port)
-        self.client.on_message = self.on_message
+        self.message = {}
 
-        self.__load__()
-        
-        if domain is not None and domain.lower() not in [x.lower() for x in self.supported_domains]:
-            raise ValueError("Not supported domain:" + domain)
+        self.client = mqtt.Client(client_id=clientId)
+        self.connection = self.client.connect(broker_url, broker_port)
+        self.client.on_message = self._on_message
+        self.client.on_disconnect = self_on_disconnect
+        self.client.subscribe('Sentiment/Result/' + clientId, qos=0)
+        self.client.subscribe('Error/' + clientId, qos=0)
+        self.client.subscribe('Message' + clientId, qos=0)
 
-    def __load__(self):
+        self.client.loop_start()
+        self._load()
+
+
+    # def process_sentiment(self, documents, domain, lexicon, clean):
+    #
+    #
+    #     index = 0
+    #     processed_ids = {}
+    #     batch_request_documents = []
+    #     for document in self.documents:
+    #         id = str(uuid.uuid4())
+    #         batch_request_documents.append({'text': document, 'id': id})
+    #         processed_ids[id] = index
+    #         index += 1
+    #         if len(batch_request_documents) >= 200:
+    #             self.client.publish('Sentiment/Analysis', json.dumps(save_batch, indent=2))
+    #             batch_request_documents = []
+    #             print('Processed {}'.format(index))
+    #
+    #
+    #     for document in self.documents:
+    #         id = str(uuid.uuid4())
+    #         batch_request_documents.append({'text': document, 'id': id})
+    #         processed_ids[id] = index
+    #
+    #     # save_batch = {}
+    #     # save_batch['documents'] = batch_request_documents
+    #     # save_batch['Name'] = 'Test'
+
+    def _load(self):
         with Session() as session:
             url = 'http://{}/api/sentiment/version'.format(self.host)
             self.version = session.get(url).content
             url = 'http://{}/api/sentiment/domains'.format(self.host)
             self.supported_domains = json.loads(session.get(url).content)
 
-    def on_message(self, client, userdata, message):
+    def _on_disconnect(self, client, userdata, rc=0):
+        logging.debug("Disconnected result code " + str(rc))
+        client.loop_stop()
+
+    def _on_message(self, client, userdata, message):
+        if message.topic not in self.message:
+            self.message[message.topic] = []
         print("message received ", str(message.payload.decode("utf-8")))
         print("message topic=", message.topic)
         print("message qos=", message.qos)
         print("message retain flag=", message.retain)
+        self.message[message.topic].append(message)
 
-    def __iter__(self):
-        index = 0
-        processed_ids = {}
-        batch_request_documents = []
-        self.client.loop_start()  # start the loop
-        sic = self.client.subscribe("Sentiment/Result/UserOneUserOneUserOne", qos=0)
-        sic = self.client.subscribe("Sentiment/Result/UserOneUserOneUserOne", qos=0)
-        sic = self.client.subscribe("Error/UserOneUserOneUserOne", qos=0)
-        sic = self.client.subscribe("Message/UserOneUserOneUserOne", qos=0)
 
-        for document in self.documents:
-            id = str(uuid.uuid4())
-            batch_request_documents.append({'text': document, 'id': id})
-            processed_ids[id] = index
-            index += 1
-            # if len(batch_request_documents) >= 200:
-            #     self.
-                # yield from self.process_on_server(batch_request_documents, processed_ids)
-                # batch_request_documents = []
-                # print('Processed {}'.format(index))
-
-        # Process outstanding documents
-        if len(batch_request_documents) > 0:
-            save = {}
-            save['documents'] = batch_request_documents
-            save['Name'] = 'Test'
-
-            self.client.publish('Sentiment/Save', json.dumps(save, indent=2))
-            self.client.publish('Sentiment/Train')
-            # self.client.publish('Sentiment/Analysis', self.process_on_server(batch_request_documents))
-            # yield from self.process_on_server(batch_request_documents, processed_ids)
-
-        time.sleep(40)
-
-    def process_on_server(self, batch_request_documents):
-        data = {}
-        data['CleanText'] = self.clean
-        if self.lexicon is not None:
-            data['dictionary'] = self.lexicon
-        if self.domain is not None:
-            data['domain'] = self.domain
-        data['documents'] = batch_request_documents
-        return json.dumps(data, indent=2)
 
         # with Session() as session:
         #     url = 'http://{}/api/sentiment/parsestream'.format(self.host)
@@ -105,6 +100,54 @@ class SentimentAnalysis(object):
         #                         sentiment_class = -1
         #                 id = processed_ids[sentimen_result['Id']]
         #                 yield (id, sentiment_class, sentimen_result)
+
+
+class SentimentAnalysis(object):
+
+    def __init__(self, connection, documents, domain, lexicon, clean):
+
+        if domain is not None and domain.lower() not in [x.lower() for x in connection.supported_domains]:
+             raise ValueError("Not supported domain:" + domain)
+        self.connection = connection
+        self.documents = documents
+        self.domain = domain
+        self.lexicon = lexicon
+        self.clean = clean
+
+    def __iter__(self):
+        index = 0
+        processed_ids = {}
+        batch_request_documents = []
+        for document in self.documents:
+            id = str(uuid.uuid4())
+            batch_request_documents.append({'text': document, 'id': id})
+            processed_ids[id] = index
+            index += 1
+            if len(batch_request_documents) >= 200:
+                yield from self.process_on_server(batch_request_documents, processed_ids)
+                batch_request_documents = []
+                print('Processed {}'.format(index))
+
+        # Process outstanding documents
+        if len(batch_request_documents) > 0:
+            yield from self.process_on_server(batch_request_documents, processed_ids)
+
+    def _process_on_server(self, batch_request_documents, processed_ids):
+        document_request = _create_batch(batch_request_documents)
+        self.client.publish('Sentiment/Analysis', json.dumps(document_reques, indent=2))
+        while len(processed_ids) > 0:
+        pass
+
+    def _create_batch(self, documents):
+        data = {}
+        data['CleanText'] = clean
+        if self.lexicon is not None:
+            data['dictionary'] = lexicon
+        if self.domain is not None:
+            data['domain'] = domain
+        data['documents'] = documents
+        return json.dumps(data, indent=2)
+
 
 
 if __name__ == "__main__":
