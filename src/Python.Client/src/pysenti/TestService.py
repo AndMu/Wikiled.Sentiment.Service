@@ -2,6 +2,7 @@ import json
 import time
 import uuid
 from requests import Session
+from . import logger
 from sklearn.preprocessing import OneHotEncoder
 
 import paho.mqtt.client as mqtt
