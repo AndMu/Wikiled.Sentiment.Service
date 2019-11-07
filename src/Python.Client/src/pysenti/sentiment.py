@@ -21,7 +21,7 @@ class SentimentConnection(object):
         broker_url = "localhost"
         broker_port = 1883
 
-        self.message = {}
+        self.messages = {}
         logger.info(f'Setting up connection to {self.host} for {clientId}')
         self.sentiment_result_topic = 'Sentiment/Result/' + clientId
         self.message_topic = 'Message/' + clientId
@@ -47,18 +47,17 @@ class SentimentConnection(object):
             self.supported_domains = json.loads(session.get(url).content)
 
     def _on_disconnect(self, client, userdata, rc=0):
-        logger.info("Disconnected result code " + str(rc))word
+        logger.info("Disconnected result code " + str(rc))ord
         client.loop_stop()
 
     def _on_message(self, client, userdata, message):
-        if message.topic not in self.message:
-            self.message[message.topic] = []
-        logger.info("message received ", str(message.payload.decode("utf-8")))
+        if message.topic not in self.messages:
+            self.messages[message.topic] = []
+        payload = str(message.payload.decode("utf-8"))
         logger.debug("message topic=", message.topic)
         logger.debug("message qos=", message.qos)
         logger.debug("message retain flag=", message.retain)
-        self.message[message.topic].append(message)
-
+        self.messages[message.topic].append((message, payload))
 
 
 class SentimentAnalysis(object):
@@ -83,19 +82,32 @@ class SentimentAnalysis(object):
             processed_ids[id] = index
             index += 1
             if len(batch_request_documents) >= 200:
-                yield from self.process_on_server(batch_request_documents, processed_ids)
+                yield from self._process_on_server(batch_request_documents, processed_ids)
                 batch_request_documents = []
                 print('Processed {}'.format(index))
 
         # Process outstanding documents
         if len(batch_request_documents) > 0:
-            yield from self.process_on_server(batch_request_documents, processed_ids)
+            yield from self._process_on_server(batch_request_documents, processed_ids)
 
     def _process_on_server(self, batch_request_documents, processed_ids):
         document_request = self._create_batch(batch_request_documents)
         self.client.publish('Sentiment/Analysis', document_request)
+        timeout = 30
+        waited = 0
         while len(processed_ids) > 0:
-            while self.connection.:
+            waited += 1
+            if (waited > timeout):
+                raise TimeoutError()
+            if self.connection.sentiment_result_topic in self.connection.messages:
+                waited = 0
+                messages = self.connection.messages[self.connection.sentiment_result_topic]
+                for message in messages:
+                    document = json.loads(message.payload)
+                    processed_ids.remove(document.id)
+                    messages.remove(message)
+                    yield document
+
             time.sleep(1)
 
     def _create_batch(self, documents):
