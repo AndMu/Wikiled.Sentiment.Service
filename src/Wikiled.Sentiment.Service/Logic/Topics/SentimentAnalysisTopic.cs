@@ -68,13 +68,15 @@ namespace Wikiled.Sentiment.Service.Logic.Topics
             }
 
             var monitor = new PerformanceMonitor(request.Documents.Length);
-            using (Observable.Interval(TimeSpan.FromSeconds(10)).Subscribe(item => logger.LogInformation(monitor.ToString())))
+            using (Observable.Interval(TimeSpan.FromSeconds(10))
+                .Subscribe(item => logger.LogInformation(monitor.ToString())))
             {
                 ISentimentDataHolder loader = default;
                 if (request.Dictionary != null)
                 {
                     logger.LogInformation("Creating custom dictionary with {0} words", request.Dictionary.Count);
-                    loader = SentimentDataHolder.Load(request.Dictionary.Select(item => new WordSentimentValueData(item.Key, new SentimentValueData(item.Value))));
+                    loader = SentimentDataHolder.Load(request.Dictionary.Select(item =>
+                        new WordSentimentValueData(item.Key, new SentimentValueData(item.Value))));
                 }
                 else if (!string.IsNullOrEmpty(request.Domain))
                 {
@@ -94,14 +96,20 @@ namespace Wikiled.Sentiment.Service.Logic.Topics
                         client.Lexicon = loader;
                     }
 
-                    await client.Process(request.Documents.Select(item => converter.Convert(item, request.CleanText)).ToObservable())
-                                .Buffer(TimeSpan.FromSeconds(5), 10, scheduler)
-                                .Select(async item =>
-                                {
-                                    await notifications.PublishResults(message.ClientId, item).ConfigureAwait(false);
-                                    return Unit.Default;
-                                })
-                                .Merge();
+                    await client.Process(request.Documents.Select(item => converter.Convert(item, request.CleanText))
+                            .ToObservable())
+                        .Select(item =>
+                        {
+                            monitor.Increment();
+                            return item;
+                        })
+                        .Buffer(TimeSpan.FromSeconds(5), 10, scheduler)
+                        .Select(async item =>
+                        {
+                            await notifications.PublishResults(message.ClientId, item).ConfigureAwait(false);
+                            return Unit.Default;
+                        })
+                        .Merge();
                 }
 
                 logger.LogInformation("Completed with final performance: {0}", monitor);

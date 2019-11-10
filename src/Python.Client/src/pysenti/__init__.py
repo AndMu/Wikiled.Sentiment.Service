@@ -1,3 +1,6 @@
-import logging
+from .service.sentiment import SentimentConnection, SentimentAnalysis
+from .helpers.LoggingFileHandler import LoggingFileHandler
 
-logger = logging.getLogger(__name__)
+name = "pysenti"
+
+__all__ = ["SentimentConnection", "SentimentAnalysis", "LoggingFileHandler"]

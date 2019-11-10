@@ -25,7 +25,7 @@ namespace Wikiled.Sentiment.Service.Controllers
 
         [Route("save")]
         [HttpPost]
-        public async Task<ActionResult<Document>> Parse([FromBody] SaveRequest save)
+        public async Task<ActionResult<Document>> Save([FromBody] SaveRequest save)
         {
             if (save == null)
             {
@@ -37,7 +37,7 @@ namespace Wikiled.Sentiment.Service.Controllers
             return Ok();
         }
 
-        [Route("save/{userId}/{name}")]
+        [Route("check/{userId}/{name}")]
         [HttpGet]
         public ActionResult<int> Check(string userId, string name)
         {

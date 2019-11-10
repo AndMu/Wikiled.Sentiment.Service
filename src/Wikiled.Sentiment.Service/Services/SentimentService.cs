@@ -102,7 +102,7 @@ namespace Wikiled.Sentiment.Service.Services
             finally
             {
                 resourcesHandler.Release(eventArgs.ClientId);
-                await notifications.SendUserMessage(eventArgs.ClientId, TopicConstants.SentimentAnalysisResult, $"{eventArgs.ApplicationMessage.Topic} Done").ConfigureAwait(false);
+                await notifications.SendUserMessage(eventArgs.ClientId, TopicConstants.Message, $"{eventArgs.ApplicationMessage.Topic} Done").ConfigureAwait(false);
             }
         }
 
