@@ -1,4 +1,4 @@
-﻿namespace Wikiled.Sentiment.Service.Logic.Topics
+﻿namespace Wikiled.Sentiment.Service.Services.Topics
 {
     public static class TopicConstants
     {
@@ -7,6 +7,8 @@
         public const string SentimentAnalysisResult = "Sentiment/Result";
 
         public const string SentimentTraining = "Sentiment/Train";
+
+        public const string SentimentDone = "Sentiment/Done";
 
         public const string SentimentSave= "Sentiment/Save";
 

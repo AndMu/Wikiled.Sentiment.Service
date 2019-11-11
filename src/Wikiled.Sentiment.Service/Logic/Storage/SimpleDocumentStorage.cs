@@ -4,6 +4,7 @@ using System.IO;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Wikiled.Common.Extensions;
 using Wikiled.Common.Utilities.Serialization;
@@ -17,9 +18,12 @@ namespace Wikiled.Sentiment.Service.Logic.Storage
 
         private readonly ILogger<SimpleDocumentStorage> logger;
 
-        public SimpleDocumentStorage(ILogger<SimpleDocumentStorage> logger, IJsonSerializer serializer)
+        private IHostEnvironment env;
+
+        public SimpleDocumentStorage(ILogger<SimpleDocumentStorage> logger, IJsonSerializer serializer, IHostEnvironment env)
         {
             this.serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
+            this.env = env ?? throw new ArgumentNullException(nameof(env));
             this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -44,7 +48,7 @@ namespace Wikiled.Sentiment.Service.Logic.Storage
 
         public string GetLocation(string client, string name, string type = "documents")
         {
-            var directory = Path.Combine("Storage", client, name, type);
+            var directory = Path.Combine(env.ContentRootPath, "Storage", client, name, type);
             return directory;
         }
 
@@ -63,7 +67,7 @@ namespace Wikiled.Sentiment.Service.Logic.Storage
         {
             try
             {
-                var files = Directory.GetFiles(GetLocation(client, name), ".zip");
+                var files = Directory.GetFiles(GetLocation(client, name), "*.zip");
                 foreach (var file in files)
                 {
                     var result = serializer.DeserializeJsonZip<SingleRequestData[]>(file);

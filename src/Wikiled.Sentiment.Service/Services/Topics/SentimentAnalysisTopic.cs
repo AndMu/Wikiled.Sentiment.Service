@@ -1,21 +1,22 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using MQTTnet;
-using System;
+﻿using System;
 using System.Linq;
 using System.Reactive;
 using System.Reactive.Concurrency;
 using System.Reactive.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using MQTTnet;
 using Wikiled.Common.Logging;
 using Wikiled.Common.Utilities.Serialization;
 using Wikiled.Sentiment.Analysis.Containers;
 using Wikiled.Sentiment.Api.Request;
+using Wikiled.Sentiment.Service.Logic;
 using Wikiled.Sentiment.Service.Logic.Notifications;
 using Wikiled.Sentiment.Text.Parser;
 using Wikiled.Sentiment.Text.Sentiment;
 
-namespace Wikiled.Sentiment.Service.Logic.Topics
+namespace Wikiled.Sentiment.Service.Services.Topics
 {
     public class SentimentAnalysisTopic : ITopicProcessing
     {

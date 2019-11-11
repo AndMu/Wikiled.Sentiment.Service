@@ -1,5 +1,5 @@
 from .service.sentiment import SentimentConnection, SentimentAnalysis
-from .helpers.LoggingFileHandler import LoggingFileHandler
+from .helpers.logging_helpers import LoggingFileHandler
 
 name = "pysenti"
 

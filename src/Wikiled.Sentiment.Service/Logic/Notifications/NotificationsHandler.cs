@@ -10,7 +10,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Wikiled.Common.Utilities.Serialization;
 using Wikiled.Sentiment.Analysis.Pipeline;
-using Wikiled.Sentiment.Service.Logic.Topics;
+using Wikiled.Sentiment.Service.Services.Topics;
 
 namespace Wikiled.Sentiment.Service.Logic.Notifications
 {
