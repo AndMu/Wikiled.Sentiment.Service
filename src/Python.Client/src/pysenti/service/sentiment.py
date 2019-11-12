@@ -4,9 +4,9 @@ import time
 import uuid
 from os import path
 
-from paho import mqtt
+from paho.mqtt.client import Client
 
-import pysenti.helpers.Utilities as ut
+import pysenti.helpers.utilities as ut
 from requests import Session
 from pysenti.service import logger
 
@@ -27,12 +27,13 @@ class SentimentConnection(object):
         if client_id is None or len(client_id) < 10:
             raise ValueError('Client id is too short. Minimum 10 symbols')
 
-        self.clientId = client_id
+        self.client_id = client_id
         self.host = 'sentiment.wikiled.com'
         self.host = 'localhost:5000'
         self.batch_size = 200
         self.broker_url = "localhost"
         self.broker_port = 1883
+        self._load();
 
     def _load(self):
         with Session() as session:
@@ -47,7 +48,7 @@ class SentimentConnection(object):
             for documents_batch in ut.batch(documents, self.batch_size):
                 session.headers['Content-Type'] = 'application/json'
                 request = {}
-                request['User'] = self.clientId
+                request['User'] = self.client_id
                 request['Name'] = name
                 request['Documents'] = documents_batch
                 result = session.post(url, data=json.dumps(request, default=vars, indent=4))
@@ -60,12 +61,13 @@ class SentimentStream(object):
     def __init__(self, connection: SentimentConnection):
         self.connection = connection
         self.messages = {}
-        logger.info(f'Setting up connection to {self.host} for {self.connection.client_id}')
+        logger.info(f'Setting up connection to {self.connection.host} for {self.connection.client_id}')
         self.sentiment_result_topic = f'Sentiment/Result/{self.connection.client_id}'
         self.message_topic = f'Message/{self.connection.client_id}'
         self.error_topic = f'Error/{self.connection.client_id}'
+        self.done_topic = f'Sentiment/Done/{self.connection.client_id}'
 
-        self.client = mqtt.Client(client_id=self.connection.client_id)
+        self.client = Client(client_id=self.connection.client_id)
         self.client.on_message = self._on_message
         self.client.on_disconnect = self._on_disconnect
 
@@ -75,6 +77,7 @@ class SentimentStream(object):
         self.client.subscribe(self.error_topic, qos=0)
         self.client.subscribe(self.message_topic, qos=0)
         self.client.loop_start()
+        return self
 
     def __exit__(self, type, value, traceback):
         self.client.loop_stop()
@@ -101,7 +104,8 @@ class SentimentStream(object):
 
 class SentimentAnalysis(object):
 
-    def __init__(self, connection: SentimentConnection, documents: Document, domain: str, lexicon: dict, clean: bool):
+    def __init__(self, connection: SentimentConnection, documents: Document = None, domain: str = None,
+                 lexicon: dict = None, clean: bool = False):
         if domain is not None and domain.lower() not in [x.lower() for x in connection.supported_domains]:
              raise ValueError("Not supported domain:" + domain)
         self.connection = connection
@@ -110,10 +114,28 @@ class SentimentAnalysis(object):
         self.lexicon = lexicon
         self.clean = clean
 
+    def train(self, name):
+        with SentimentStream(self.connection) as stream:
+            request = {}
+            request['name'] = name
+            request['domain'] = self.domain
+            request['CleanText'] = self.clean
+            stream.client.publish('Sentiment/Train', json.dumps(request, indent=2))
+            # wait 15 minutes
+            timeout = 15 * 60
+            waited = 0
+            while stream.error_topic not in stream.messages and stream.done_topic not in stream.messages:
+                waited += 1
+                if (waited > timeout):
+                    raise TimeoutError()
+                time.sleep(1)
+            if stream.error_topic in stream.messages:
+                raise ConnectionError(stream.messages[stream.error_topic][0].payload)
+
     def __iter__(self):
         index = 0
         processed_ids = {}
-        with SentimentStream(self.connection) as  stream:
+        with SentimentStream(self.connection) as stream:
             for document_batch in ut.batch(self.documents, self.connection.batch_size):
                 batch_request_documents = []
                 for document in document_batch:
@@ -126,7 +148,7 @@ class SentimentAnalysis(object):
 
     def _process_on_server(self, stream, batch_request_documents, processed_ids):
         document_request = self._create_batch(batch_request_documents)
-        stream.publish('Sentiment/Analysis', document_request)
+        stream.client.publish('Sentiment/Analysis', document_request)
         timeout = 30
         waited = 0
         while len(processed_ids) > 0:
@@ -178,7 +200,9 @@ def read_documents(path_folder: str, class_type: bool):
         full_name = path.join(path_folder, filename)
         with open(full_name, "r", encoding='utf8') as reader:
             text = reader.read()
-            all_documents.append(Document(id, text))
+            doc = Document(id, text)
+            doc.isPositive = class_type
+            all_documents.append(doc)
     return all_documents
 
 
@@ -191,8 +215,14 @@ def save_documents():
     connection.save_documents('Test', all_documents)
 
 
+def train():
+    analysis = SentimentAnalysis(SentimentConnection('TestConnection17'), domain='market', clean=True)
+    analysis.train('Test')
+
+
 if __name__ == "__main__":
-    save_documents()
+    train()
+
 
     # def process_sentiment(self, documents, domain, lexicon, clean):
     #

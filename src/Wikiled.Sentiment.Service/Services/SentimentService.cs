@@ -8,7 +8,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Wikiled.Sentiment.Service.Logic.Allocation;
 using Wikiled.Sentiment.Service.Logic.Notifications;
-using Wikiled.Sentiment.Service.Logic.Topics;
+using Wikiled.Sentiment.Service.Services.Topics;
 
 namespace Wikiled.Sentiment.Service.Services
 {
@@ -58,7 +58,7 @@ namespace Wikiled.Sentiment.Service.Services
             return Task.CompletedTask;
         }
 
-        public async Task HandleApplicationMessageReceivedAsync(MqttApplicationMessageReceivedEventArgs eventArgs)
+        public Task HandleApplicationMessageReceivedAsync(MqttApplicationMessageReceivedEventArgs eventArgs)
         {
             if (eventArgs == null)
             {
@@ -67,17 +67,35 @@ namespace Wikiled.Sentiment.Service.Services
 
             if (eventArgs.ClientId == null)
             {
-                return;
+                return Task.CompletedTask;
             }
 
             logger.LogDebug("Handling message: {0}", eventArgs.ClientId);
+            Task.Run(() => Processing(eventArgs));
+            return Task.CompletedTask;
+        }
 
+        public Task HandleClientDisconnectedAsync(MqttServerClientDisconnectedEventArgs eventArgs)
+        {
+            if (eventArgs == null)
+            {
+                throw new ArgumentNullException(nameof(eventArgs));
+            }
+
+            logger.LogDebug("Disconnected: {0}", eventArgs.ClientId);
+            return Task.CompletedTask;
+        }
+
+        private async Task Processing(MqttApplicationMessageReceivedEventArgs eventArgs)
+        {
             try
             {
                 var allocation = await resourcesHandler.Allocate(eventArgs.ClientId).ConfigureAwait(false);
                 if (!allocation)
                 {
-                    await notifications.SendUserMessage(eventArgs.ClientId, TopicConstants.Error, "Failed to allocate resources for training").ConfigureAwait(false);
+                    await notifications
+                        .SendUserMessage(eventArgs.ClientId, TopicConstants.Error, "Failed to allocate resources for training")
+                        .ConfigureAwait(false);
                     return;
                 }
 
@@ -87,6 +105,8 @@ namespace Wikiled.Sentiment.Service.Services
                     var tasks = topicProcessings[eventArgs.ApplicationMessage.Topic]
                         .Select(item => item.Process(eventArgs));
                     await Task.WhenAll(tasks).ConfigureAwait(false);
+                    await notifications.SendUserMessage(eventArgs.ClientId, TopicConstants.SentimentDone, "Done")
+                        .ConfigureAwait(false);
                 }
                 else
                 {
@@ -102,19 +122,10 @@ namespace Wikiled.Sentiment.Service.Services
             finally
             {
                 resourcesHandler.Release(eventArgs.ClientId);
-                await notifications.SendUserMessage(eventArgs.ClientId, TopicConstants.Message, $"{eventArgs.ApplicationMessage.Topic} Done").ConfigureAwait(false);
+                await notifications
+                    .SendUserMessage(eventArgs.ClientId, TopicConstants.Message, $"{eventArgs.ApplicationMessage.Topic} Done")
+                    .ConfigureAwait(false);
             }
-        }
-
-        public Task HandleClientDisconnectedAsync(MqttServerClientDisconnectedEventArgs eventArgs)
-        {
-            if (eventArgs == null)
-            {
-                throw new ArgumentNullException(nameof(eventArgs));
-            }
-
-            logger.LogDebug("Disconnected: {0}", eventArgs.ClientId);
-            return Task.CompletedTask;
         }
     }
 }

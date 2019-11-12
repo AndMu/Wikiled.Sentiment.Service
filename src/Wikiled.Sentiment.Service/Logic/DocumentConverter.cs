@@ -36,6 +36,11 @@ namespace Wikiled.Sentiment.Service.Logic
             review.Text = doCleanup ? cleanup.Cleanup(review.Text) : review.Text;
             var data = new SingleProcessingData();
             data.Author = review.Author;
+            if (review.IsPositive.HasValue)
+            {
+                data.Stars = review.IsPositive.Value ? 5 : 1;
+            }
+
             data.Date = review.Date;
             data.Id = review.Id;
             data.Text = review.Text;

@@ -6,7 +6,7 @@ using Wikiled.Common.Utilities.Serialization;
 using Wikiled.Sentiment.Api.Request;
 using Wikiled.Sentiment.Service.Logic.Storage;
 
-namespace Wikiled.Sentiment.Service.Logic.Topics
+namespace Wikiled.Sentiment.Service.Services.Topics
 {
     public class DocumentSaveTopic : ITopicProcessing
     {
