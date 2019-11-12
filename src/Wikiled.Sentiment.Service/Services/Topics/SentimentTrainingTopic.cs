@@ -1,25 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Reactive.Linq;
-using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MQTTnet;
-using MQTTnet.Protocol;
-using MQTTnet.Server;
-using Wikiled.Common.Logging;
+using System;
+using System.Reactive.Linq;
+using System.Threading.Tasks;
 using Wikiled.Common.Utilities.Serialization;
-using Wikiled.MachineLearning.Mathematics;
 using Wikiled.Sentiment.Analysis.Containers;
-using Wikiled.Sentiment.Analysis.Pipeline;
 using Wikiled.Sentiment.Api.Request;
 using Wikiled.Sentiment.Service.Logic;
-using Wikiled.Sentiment.Service.Logic.Notifications;
 using Wikiled.Sentiment.Service.Logic.Storage;
 using Wikiled.Sentiment.Text.Parser;
-using Wikiled.Text.Analysis.NLP.NRC;
 
 namespace Wikiled.Sentiment.Service.Services.Topics
 {
@@ -81,9 +71,9 @@ namespace Wikiled.Sentiment.Service.Services.Topics
                 }
 
                 var positive = storage.Load(message.ClientId, request.Name, true)
-                                       .Take(200);
-                var negative = storage.Load(message.ClientId, request.Name, true)
-                                      .Take(200);
+                                       .Take(20);
+                var negative = storage.Load(message.ClientId, request.Name, false)
+                                      .Take(20);
 
                 var documents = positive.Concat(negative).Select(item => converter.Convert(item, request.CleanText));
                 await client.Train(documents).ConfigureAwait(false);
