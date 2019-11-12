@@ -55,8 +55,7 @@ namespace Wikiled.Sentiment.Service.Logic.Storage
                           {
                               ReadFiles(client, name, observer);
                               return Disposable.Empty;
-                          })
-                      .Distinct(item => item.Id);
+                          });
         }
 
         private void ReadFiles(string client, string name, IObserver<SingleRequestData> observer)
