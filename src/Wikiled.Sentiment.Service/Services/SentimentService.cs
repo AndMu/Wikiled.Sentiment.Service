@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Wikiled.Common.Utilities.Helpers;
 using Wikiled.Sentiment.Service.Logic.Allocation;
 using Wikiled.Sentiment.Service.Logic.Notifications;
 using Wikiled.Sentiment.Service.Services.Topics;
@@ -71,7 +72,7 @@ namespace Wikiled.Sentiment.Service.Services
             }
 
             logger.LogDebug("Handling message: {0}", eventArgs.ClientId);
-            Task.Run(() => Processing(eventArgs));
+            Task.Run(() => Processing(eventArgs)).ForgetOrThrow(logger);
             return Task.CompletedTask;
         }
 

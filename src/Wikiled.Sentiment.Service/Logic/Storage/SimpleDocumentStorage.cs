@@ -1,11 +1,11 @@
-﻿using System;
-using System.Globalization;
+﻿using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Wikiled.Common.Extensions;
 using Wikiled.Common.Utilities.Serialization;
 using Wikiled.Sentiment.Api.Request;
@@ -27,22 +27,46 @@ namespace Wikiled.Sentiment.Service.Logic.Storage
             this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        public async Task Save(SaveRequest request)
+        public Task Save(SaveRequest request)
         {
             if (request == null)
             {
                 throw new ArgumentNullException(nameof(request));
             }
 
-            var directory = GetLocation(request.User, request.Name);
-            directory.EnsureDirectoryExistence();
-            var output = Path.Combine(directory, $"{DateTime.UtcNow.ToString("yyyyMMddHHhhmmssffff", CultureInfo.InvariantCulture)}.zip");
-            await serializer.SerializeJsonZip(request.Documents, output).ConfigureAwait(false);
+            var directoryPositive = GetDocumentClassFolder(request.User, request.Name, true);
+            directoryPositive.EnsureDirectoryExistence();
+
+            var directoryNegative = GetDocumentClassFolder(request.User, request.Name, false);
+            directoryNegative.EnsureDirectoryExistence();
+            var tasks = new List<Task>();
+            foreach (var document in request.Documents)
+            {
+                if (!document.IsPositive.HasValue)
+                {
+                    logger.LogWarning("Can't save document <{0}> without class id", document.Id);
+                    continue;
+                }
+
+                if (string.IsNullOrEmpty(document.Id))
+                {
+                    document.Id = Guid.NewGuid().ToString();
+                    logger.LogWarning("Document doesn't have id - generating");
+                }
+
+                var directory = document.IsPositive.Value ? directoryPositive : directoryNegative;
+
+                var output = Path.Combine(directory, $"{document.Id}.zip");
+                var task = serializer.SerializeJsonZip(request.Documents, output);
+                tasks.Add(task);
+            }
+
+            return Task.WhenAll(tasks);
         }
 
         public int Count(string client, string name)
         {
-            var files = Directory.GetFiles(GetLocation(client, name), ".zip");
+            var files = Directory.GetFiles(GetLocation(client, name), ".zip", SearchOption.AllDirectories);
             return files.Length;
         }
 
@@ -52,21 +76,21 @@ namespace Wikiled.Sentiment.Service.Logic.Storage
             return directory;
         }
 
-        public IObservable<SingleRequestData> Load(string client, string name)
+        public IObservable<SingleRequestData> Load(string client, string name, bool classType)
         {
             return Observable.Create<SingleRequestData>(
                           (observer) =>
                           {
-                              ReadFiles(client, name, observer);
+                              ReadFiles(client, name, classType, observer);
                               return Disposable.Empty;
                           });
         }
 
-        private void ReadFiles(string client, string name, IObserver<SingleRequestData> observer)
+        private void ReadFiles(string client, string name, bool classType, IObserver<SingleRequestData> observer)
         {
             try
             {
-                var files = Directory.GetFiles(GetLocation(client, name), "*.zip");
+                var files = Directory.GetFiles(GetDocumentClassFolder(client, name, classType), "*.zip");
                 foreach (var file in files)
                 {
                     var result = serializer.DeserializeJsonZip<SingleRequestData[]>(file);
@@ -82,6 +106,11 @@ namespace Wikiled.Sentiment.Service.Logic.Storage
             }
 
             observer.OnCompleted();
+        }
+
+        private string GetDocumentClassFolder(string user, string name, bool classType)
+        {
+            return Path.Combine(GetLocation(user, name), classType ? "pos" : "neg");
         }
     }
 }

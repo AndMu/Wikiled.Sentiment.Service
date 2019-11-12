@@ -11,6 +11,7 @@ using MQTTnet.Protocol;
 using MQTTnet.Server;
 using Wikiled.Common.Logging;
 using Wikiled.Common.Utilities.Serialization;
+using Wikiled.MachineLearning.Mathematics;
 using Wikiled.Sentiment.Analysis.Containers;
 using Wikiled.Sentiment.Analysis.Pipeline;
 using Wikiled.Sentiment.Api.Request;
@@ -18,6 +19,7 @@ using Wikiled.Sentiment.Service.Logic;
 using Wikiled.Sentiment.Service.Logic.Notifications;
 using Wikiled.Sentiment.Service.Logic.Storage;
 using Wikiled.Sentiment.Text.Parser;
+using Wikiled.Text.Analysis.NLP.NRC;
 
 namespace Wikiled.Sentiment.Service.Services.Topics
 {
@@ -78,9 +80,12 @@ namespace Wikiled.Sentiment.Service.Services.Topics
                     client.Lexicon = loader;
                 }
 
-                var documents = storage.Load(message.ClientId, request.Name)
-                    .Select(item => converter.Convert(item, request.CleanText));
+                var positive = storage.Load(message.ClientId, request.Name, true)
+                                       .Take(200);
+                var negative = storage.Load(message.ClientId, request.Name, true)
+                                      .Take(200);
 
+                var documents = positive.Concat(negative).Select(item => converter.Convert(item, request.CleanText));
                 await client.Train(documents).ConfigureAwait(false);
             }
         }
