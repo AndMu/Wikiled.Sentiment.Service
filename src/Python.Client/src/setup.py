@@ -10,9 +10,6 @@ with open("Readme.md", "r") as fh:
 with open('requirements.txt') as f:
     required = f.read().splitlines()
 
-with open('requirements.internal.txt') as f:
-    required = required + f.read().splitlines()
-
 here = os.path.abspath(os.path.dirname(__file__))
 
 

@@ -57,7 +57,7 @@ namespace Wikiled.Sentiment.Service.Logic.Storage
                 var directory = document.IsPositive.Value ? directoryPositive : directoryNegative;
 
                 var output = Path.Combine(directory, $"{document.Id}.zip");
-                var task = serializer.SerializeJsonZip(request.Documents, output);
+                var task = serializer.SerializeJsonZip(document, output);
                 tasks.Add(task);
             }
 
@@ -93,11 +93,8 @@ namespace Wikiled.Sentiment.Service.Logic.Storage
                 var files = Directory.GetFiles(GetDocumentClassFolder(client, name, classType), "*.zip");
                 foreach (var file in files)
                 {
-                    var result = serializer.DeserializeJsonZip<SingleRequestData[]>(file);
-                    foreach (var requestData in result)
-                    {
-                        observer.OnNext(requestData);
-                    }
+                    var result = serializer.DeserializeJsonZip<SingleRequestData>(file);
+                    observer.OnNext(result);
                 }
             }
             catch (Exception e)

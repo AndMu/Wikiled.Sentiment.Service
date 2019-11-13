@@ -96,7 +96,7 @@ namespace Wikiled.Sentiment.Service.Services.Topics
                 {
                     logger.LogInformation("Using model path: {0}", request.Model);
                     modelLocation = storage.GetLocation(message.ClientId, request.Model, TopicConstants.Model);
-                    if (Directory.Exists(modelLocation))
+                    if (!Directory.Exists(modelLocation))
                     {
                         throw new ApplicationException($"Can't find model {request.Model}");
                     }

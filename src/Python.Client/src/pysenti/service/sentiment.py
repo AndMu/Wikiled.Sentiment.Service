@@ -1,14 +1,12 @@
 import json
-import os
 import time
 import uuid
-from os import path
 
 from paho.mqtt.client import Client
 
-import pysenti.helpers.utilities as ut
+from ..helpers.utilities import batch
 from requests import Session
-from pysenti.service import logger
+from ..service import logger
 
 
 class Document(object):
@@ -45,7 +43,7 @@ class SentimentConnection(object):
     def save_documents(self, name: str, documents: Document):
         with Session() as session:
             url = f'http://{self.host}/api/documents/save'
-            for documents_batch in ut.batch(documents, self.batch_size):
+            for documents_batch in batch(documents, self.batch_size):
                 session.headers['Content-Type'] = 'application/json'
                 request = {}
                 request['User'] = self.client_id
@@ -74,8 +72,9 @@ class SentimentStream(object):
     def __enter__(self):
         self.connection = self.client.connect(self.connection.broker_url, self.connection.broker_port)
         self.client.subscribe(self.sentiment_result_topic)
-        self.client.subscribe(self.error_topic, qos=0)
-        self.client.subscribe(self.message_topic, qos=0)
+        self.client.subscribe(self.done_topic)
+        self.client.subscribe(self.error_topic)
+        self.client.subscribe(self.message_topic)
         self.client.loop_start()
         return self
 
@@ -117,11 +116,12 @@ class SentimentAnalysis(object):
 
     def train(self, name):
         with SentimentStream(self.connection) as stream:
-            request = {}
-            request['name'] = name
-            request['domain'] = self.domain
-            request['model'] = self.model
-            request['CleanText'] = self.clean
+            request = {
+                'name': name,
+                'domain': self.domain,
+                'CleanText': self.clean
+            }
+
             stream.client.publish('Sentiment/Train', json.dumps(request, indent=2))
             # wait 15 minutes
             timeout = 15 * 60
@@ -138,11 +138,15 @@ class SentimentAnalysis(object):
         index = 0
         processed_ids = {}
         with SentimentStream(self.connection) as stream:
-            for document_batch in ut.batch(self.documents, self.connection.batch_size):
+            for document_batch in batch(self.documents, self.connection.batch_size):
                 batch_request_documents = []
-                for document in document_batch:
-                    if document.id is None:
-                        document.id = str(uuid.uuid4())
+                for document_text in document_batch:
+                    id = str(uuid.uuid4())
+                    document = {
+                        'id': id,
+                        'Text': document_text
+                    }
+
                     batch_request_documents.append(document)
                     processed_ids[id] = index
                     index += 1
@@ -176,101 +180,10 @@ class SentimentAnalysis(object):
         if self.lexicon is not None:
             data['dictionary'] = self.lexicon
         if self.domain is not None:
-            data['domain'] =self. domain
+            data['domain'] =self.domain
         data['documents'] = documents
+        data['model'] = self.model
         return json.dumps(data, indent=2)
 
-
-def sentiment_analysis():
-    documents = ['I like this bool :)', 'short it baby']
-    dictionary = {}
-    dictionary['like'] = -1
-    dictionary['BOOL'] = 1
-
-    # with custom lexicon and Twitter type cleaning
-    analysis = SentimentAnalysis(SentimentConnection('TestConnection17'), documents, 'market', dictionary, clean=True)
-    for result in analysis:
-        print(result)
-
-
-def read_documents(path_folder: str, class_type: bool):
-    directory = os.fsencode(path_folder)
-    all_documents = []
-    for file in os.listdir(directory):
-        filename = os.fsdecode(file)
-        id = os.path.splitext(filename)[0]
-        full_name = path.join(path_folder, filename)
-        with open(full_name, "r", encoding='utf8') as reader:
-            text = reader.read()
-            doc = Document(id, text)
-            doc.isPositive = class_type
-            all_documents.append(doc)
-    return all_documents
-
-
-def save_documents():
-    connection = SentimentConnection('TestConnection17')
-    all_documents = read_documents('E:/DataSets/aclImdb/All/Train/neg', False)
-    connection.save_documents('Test', all_documents)
-
-    all_documents = read_documents('E:/DataSets/aclImdb/All/Train/pos', True)
-    connection.save_documents('Test', all_documents)
-
-
-def train():
-    analysis = SentimentAnalysis(SentimentConnection('TestConnection17'), domain='market', clean=True)
-    analysis.train('Test')
-
-
-if __name__ == "__main__":
-    # save_documents()
-    train()
-
-
-    # def process_sentiment(self, documents, domain, lexicon, clean):
-    #
-    #
-    #     index = 0
-    #     processed_ids = {}
-    #     batch_request_documents = []
-    #     for document in self.documents:
-    #         id = str(uuid.uuid4())
-    #         batch_request_documents.append({'text': document, 'id': id})
-    #         processed_ids[id] = index
-    #         index += 1
-    #         if len(batch_request_documents) >= 200:
-    #             self.client.publish('Sentiment/Analysis', json.dumps(save_batch, indent=2))
-    #             batch_request_documents = []
-    #             print('Processed {}'.format(index))
-    #
-    #
-    #     for document in self.documents:
-    #         id = str(uuid.uuid4())
-    #         batch_request_documents.append({'text': document, 'id': id})
-    #         processed_ids[id] = index
-    #
-    #     # save_batch = {}
-    #     # save_batch['documents'] = batch_request_documents
-    #     # save_batch['Name'] = 'Test'
-
-    # with Session() as session:
-    #     url = 'http://{}/api/sentiment/parsestream'.format(self.host)
-    #     data['documents'] = batch_request_documents
-    #     json_object = json.dumps(data, indent=2)
-    #     headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
-    #     with session.post(url, json_object, headers=headers, stream=True) as r:
-    #         for line in r.iter_lines():
-    #             # filter out keep-alive new lines
-    #             if line:
-    #                 decoded_line = line.decode('utf-8')
-    #                 sentimen_result = json.loads(decoded_line)
-    #                 sentiment_class = 0
-    #                 if sentimen_result['Stars'] is not None:
-    #                     if sentimen_result['Stars'] > 3:
-    #                         sentiment_class = 1
-    #                     else:
-    #                         sentiment_class = -1
-    #                 id = processed_ids[sentimen_result['Id']]
-    #                 yield (id, sentiment_class, sentimen_result)
 
 
