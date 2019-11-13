@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Linq;
 using System.Reactive;
 using System.Reactive.Concurrency;
@@ -90,15 +91,20 @@ namespace Wikiled.Sentiment.Service.Services.Topics
                     loader = lexiconLoader.GetLexicon(request.Domain);
                 }
 
+                string modelLocation = null;
+                if (!string.IsNullOrEmpty(request.Model))
+                {
+                    logger.LogInformation("Using model path: {0}", request.Model);
+                    modelLocation = storage.GetLocation(message.ClientId, request.Model, TopicConstants.Model);
+                    if (Directory.Exists(modelLocation))
+                    {
+                        throw new ApplicationException($"Can't find model {request.Model}");
+                    }
+                }
+
                 using (var scope = provider.CreateScope())
                 {
                     var container = scope.ServiceProvider.GetService<ISessionContainer>();
-                    string modelLocation = null;
-                    if (!string.IsNullOrEmpty(request.Model))
-                    {
-                        logger.LogInformation("Using model path: {0}", request.Model);
-                        modelLocation = storage.GetLocation(message.ClientId, request.Model, TopicConstants.Model);
-                    }
 
                     var client = container.GetTesting(modelLocation);
                     var converter = scope.ServiceProvider.GetService<IDocumentConverter>();

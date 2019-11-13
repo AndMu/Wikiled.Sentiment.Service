@@ -2,19 +2,17 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using System;
-using System.Reactive.Concurrency;
-using System.Reflection;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using MQTTnet.AspNetCore;
 using MQTTnet.Protocol;
+using System;
+using System.Reflection;
+using System.Threading.Tasks;
 using Wikiled.Common.Logging;
 using Wikiled.Common.Utilities.Modules;
 using Wikiled.Common.Utilities.Resources;
 using Wikiled.Sentiment.Analysis.Containers;
-using Wikiled.Sentiment.Analysis.Processing;
 using Wikiled.Sentiment.Service.Logic;
 using Wikiled.Sentiment.Service.Logic.Allocation;
 using Wikiled.Sentiment.Service.Logic.Notifications;
@@ -26,7 +24,6 @@ using Wikiled.Sentiment.Text.Resources;
 using Wikiled.Server.Core.Errors;
 using Wikiled.Server.Core.Helpers;
 using Wikiled.Server.Core.Middleware;
-using Wikiled.Text.Analysis.Cache;
 
 namespace Wikiled.Sentiment.Service
 {
@@ -163,8 +160,12 @@ namespace Wikiled.Sentiment.Service
 
         private static void SetupSentiment(IServiceCollection builder, ConfigurationHandler configuration, string path)
         {
-            Classifier.Options = new ParallelOptions();
-            Classifier.Options.MaxDegreeOfParallelism = 2;
+            ParallelHelper.Options = new ParallelOptions();
+            ParallelHelper.Options.MaxDegreeOfParallelism = Environment.ProcessorCount / 2;
+            ParallelHelper.Options.MaxDegreeOfParallelism = ParallelHelper.Options.MaxDegreeOfParallelism > 6 
+                ? 6 
+                : ParallelHelper.Options.MaxDegreeOfParallelism;
+
             builder.RegisterModule(new SentimentMainModule());
             builder.RegisterModule(new SentimentServiceModule(configuration) {Lexicons = path});
 
