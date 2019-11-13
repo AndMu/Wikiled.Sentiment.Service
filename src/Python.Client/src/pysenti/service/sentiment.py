@@ -105,7 +105,7 @@ class SentimentStream(object):
 class SentimentAnalysis(object):
 
     def __init__(self, connection: SentimentConnection, documents: Document = None, domain: str = None,
-                 lexicon: dict = None, clean: bool = False):
+                 lexicon: dict = None, clean: bool = False, model: str = None):
         if domain is not None and domain.lower() not in [x.lower() for x in connection.supported_domains]:
              raise ValueError("Not supported domain:" + domain)
         self.connection = connection
@@ -113,12 +113,14 @@ class SentimentAnalysis(object):
         self.domain = domain
         self.lexicon = lexicon
         self.clean = clean
+        self.model = model
 
     def train(self, name):
         with SentimentStream(self.connection) as stream:
             request = {}
             request['name'] = name
             request['domain'] = self.domain
+            request['model'] = self.model
             request['CleanText'] = self.clean
             stream.client.publish('Sentiment/Train', json.dumps(request, indent=2))
             # wait 15 minutes
