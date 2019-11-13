@@ -15,5 +15,7 @@
         public const string Error = "Error";
 
         public const string Message = "Message";
+
+        public const string Model = "model";
     }
 }

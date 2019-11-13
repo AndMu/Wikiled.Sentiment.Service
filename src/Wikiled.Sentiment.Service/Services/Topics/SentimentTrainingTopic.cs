@@ -57,7 +57,7 @@ namespace Wikiled.Sentiment.Service.Services.Topics
                 loader = lexiconLoader.GetLexicon(request.Domain);
             }
 
-            var modelLocation = storage.GetLocation(message.ClientId, request.Name, "model");
+            var modelLocation = storage.GetLocation(message.ClientId, request.Name, TopicConstants.Model);
 
             using (var scope = provider.CreateScope())
             {

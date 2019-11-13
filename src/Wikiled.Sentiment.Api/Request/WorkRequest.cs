@@ -17,6 +17,8 @@ namespace Wikiled.Sentiment.Api.Request
 
         public string Domain { get; set; }
 
+        public string Model { get; set; }
+
         public object Clone()
         {
             return MemberwiseClone();

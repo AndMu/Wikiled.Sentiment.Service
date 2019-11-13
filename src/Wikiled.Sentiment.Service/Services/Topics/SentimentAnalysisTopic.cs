@@ -13,6 +13,7 @@ using Wikiled.Sentiment.Analysis.Containers;
 using Wikiled.Sentiment.Api.Request;
 using Wikiled.Sentiment.Service.Logic;
 using Wikiled.Sentiment.Service.Logic.Notifications;
+using Wikiled.Sentiment.Service.Logic.Storage;
 using Wikiled.Sentiment.Text.Parser;
 using Wikiled.Sentiment.Text.Sentiment;
 
@@ -32,19 +33,23 @@ namespace Wikiled.Sentiment.Service.Services.Topics
 
         private readonly INotificationsHandler notifications;
 
+        private readonly IDocumentStorage storage;
+
         public SentimentAnalysisTopic(
             ILogger<SentimentAnalysisTopic> logger,
             IJsonSerializer serializer,
             ILexiconLoader lexiconLoader,
             IScheduler scheduler,
             IServiceProvider provider,
-            INotificationsHandler notifications)
+            INotificationsHandler notifications, 
+            IDocumentStorage storage)
         {
             this.serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
             this.lexiconLoader = lexiconLoader ?? throw new ArgumentNullException(nameof(lexiconLoader));
             this.scheduler = scheduler ?? throw new ArgumentNullException(nameof(scheduler));
             this.provider = provider ?? throw new ArgumentNullException(nameof(provider));
             this.notifications = notifications ?? throw new ArgumentNullException(nameof(notifications));
+            this.storage = storage ?? throw new ArgumentNullException(nameof(storage));
             this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -88,7 +93,14 @@ namespace Wikiled.Sentiment.Service.Services.Topics
                 using (var scope = provider.CreateScope())
                 {
                     var container = scope.ServiceProvider.GetService<ISessionContainer>();
-                    var client = container.GetTesting();
+                    string modelLocation = null;
+                    if (!string.IsNullOrEmpty(request.Model))
+                    {
+                        logger.LogInformation("Using model path: {0}", request.Model);
+                        modelLocation = storage.GetLocation(message.ClientId, request.Model, TopicConstants.Model);
+                    }
+
+                    var client = container.GetTesting(modelLocation);
                     var converter = scope.ServiceProvider.GetService<IDocumentConverter>();
                     client.Init();
                     client.Pipeline.ResetMonitor();
