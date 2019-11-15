@@ -18,12 +18,21 @@ class Document(object):
         self.isPositive = None
         self.date = None
 
+    def get_dict(self):
+        return {
+            "Id": self.id,
+            "Text": self.text,
+            "Author": self.author,
+            "isPositive": self.isPositive,
+            "date": self.date,
+        }
+
 
 class SentimentConnection(object):
 
     def __init__(self, client_id: str):
-        if client_id is None or len(client_id) < 10:
-            raise ValueError('Client id is too short. Minimum 10 symbols')
+        if client_id is None or len(client_id) < 4:
+            raise ValueError('Client id is too short. Minimum 4 symbols')
 
         self.client_id = client_id
         self.host = 'sentiment.wikiled.com'
@@ -103,12 +112,11 @@ class SentimentStream(object):
 
 class SentimentAnalysis(object):
 
-    def __init__(self, connection: SentimentConnection, documents: Document = None, domain: str = None,
-                 lexicon: dict = None, clean: bool = False, model: str = None):
+    def __init__(self, connection: SentimentConnection, domain: str = None, lexicon: dict = None, clean: bool = False,
+                 model: str = None):
         if domain is not None and domain.lower() not in [x.lower() for x in connection.supported_domains]:
              raise ValueError("Not supported domain:" + domain)
         self.connection = connection
-        self.documents = documents
         self.domain = domain
         self.lexicon = lexicon
         self.clean = clean
@@ -134,20 +142,21 @@ class SentimentAnalysis(object):
             if stream.error_topic in stream.messages:
                 raise ConnectionError(stream.messages[stream.error_topic][0].payload)
 
-    def __iter__(self):
+    def detect_sentiment_text(self, documents: list):
+        document_pack = [Document(None, item) for item in documents]
+        return self.detect_sentiment(document_pack)
+
+    def detect_sentiment(self, documents: list):
         index = 0
         processed_ids = {}
         with SentimentStream(self.connection) as stream:
-            for document_batch in batch(self.documents, self.connection.batch_size):
+            for document_batch in batch(documents, self.connection.batch_size):
                 batch_request_documents = []
-                for document_text in document_batch:
-                    id = str(uuid.uuid4())
-                    document = {
-                        'id': id,
-                        'Text': document_text
-                    }
+                for document in document_batch:
+                    if document.id is None:
+                        document.id = str(uuid.uuid4())
 
-                    batch_request_documents.append(document)
+                    batch_request_documents.append(document.get_dict())
                     processed_ids[id] = index
                     index += 1
                 yield from self._process_on_server(stream, batch_request_documents, processed_ids)

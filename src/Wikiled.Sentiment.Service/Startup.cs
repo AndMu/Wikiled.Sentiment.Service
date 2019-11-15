@@ -86,9 +86,7 @@ namespace Wikiled.Sentiment.Service
                 {
                     options.AddPolicy(
                         "CorsPolicy",
-                        itemBuider => itemBuider.AllowAnyOrigin()
-                                                .AllowAnyMethod()
-                                                .AllowAnyHeader());
+                        itemBuider => itemBuider.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
                 });
 
             // Add framework services.
@@ -113,7 +111,7 @@ namespace Wikiled.Sentiment.Service
                     builder.WithConnectionValidator(
                         c =>
                         {
-                            if (c.ClientId.Length < 10)
+                            if (c.ClientId.Length < 4)
                             {
                                 c.ReasonCode = MqttConnectReasonCode.ClientIdentifierNotValid;
                                 return;
