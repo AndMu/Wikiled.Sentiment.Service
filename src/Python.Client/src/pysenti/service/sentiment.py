@@ -12,7 +12,9 @@ from ..service import logger
 class Document(object):
 
     def __init__(self, document_id: str, text: str):
-        self.id = document_id
+        if document_id is None:
+            document_id = uuid.uuid4()
+        self.id = str(document_id)
         self.text = text
         self.author = None
         self.isPositive = None
@@ -40,7 +42,13 @@ class SentimentConnection(object):
         self.batch_size = 200
         self.broker_url = "localhost"
         self.broker_port = 1883
-        self._load();
+        # 100 ms
+        self.step = 0.01
+        # 15 minutes
+        self.train_timeout = 15 * 60 * (1 / self.step)
+        # 30 seconds
+        self.analysis_timeout = 30 * (1 / self.step)
+        self._load()
 
     def _load(self):
         with Session() as session:
@@ -60,7 +68,7 @@ class SentimentConnection(object):
                 request['Documents'] = documents_batch
                 result = session.post(url, data=json.dumps(request, default=vars, indent=4))
                 if result.status_code != 200:
-                    raise ConnectionError()
+                    raise ConnectionError(result.reason)
 
 
 class SentimentStream(object):
@@ -79,7 +87,7 @@ class SentimentStream(object):
         self.client.on_disconnect = self._on_disconnect
 
     def __enter__(self):
-        self.connection = self.client.connect(self.connection.broker_url, self.connection.broker_port)
+        connection_result = self.client.connect(self.connection.broker_url, self.connection.broker_port)
         self.client.subscribe(self.sentiment_result_topic)
         self.client.subscribe(self.done_topic)
         self.client.subscribe(self.error_topic)
@@ -109,6 +117,15 @@ class SentimentStream(object):
         elif message.topic == self.message_topic:
             logger.info(payload)
 
+    def has_error(self):
+        return self.error_topic in self.messages
+
+    def is_done(self):
+        return self.done_topic in self.messages
+
+    def has_messages(self):
+        return self.done_topic in self.messages
+
 
 class SentimentAnalysis(object):
 
@@ -131,16 +148,14 @@ class SentimentAnalysis(object):
             }
 
             stream.client.publish('Sentiment/Train', json.dumps(request, indent=2))
-            # wait 15 minutes
-            timeout = 15 * 60
             waited = 0
-            while stream.error_topic not in stream.messages and stream.done_topic not in stream.messages:
+            while not stream.has_error() and not stream.is_done():
                 waited += 1
-                if (waited > timeout):
+                if (waited >= stream.connection.train_timeout):
                     raise TimeoutError()
                 time.sleep(1)
-            if stream.error_topic in stream.messages:
-                raise ConnectionError(stream.messages[stream.error_topic][0].payload)
+            if stream.has_error():
+                raise ConnectionError(stream.messages[stream.error_topic][0][1])
 
     def detect_sentiment_text(self, documents: list):
         document_pack = [Document(None, item) for item in documents]
@@ -153,22 +168,20 @@ class SentimentAnalysis(object):
             for document_batch in batch(documents, self.connection.batch_size):
                 batch_request_documents = []
                 for document in document_batch:
-                    if document.id is None:
-                        document.id = str(uuid.uuid4())
-
                     batch_request_documents.append(document.get_dict())
-                    processed_ids[id] = index
+                    processed_ids[document.id] = index
                     index += 1
                 yield from self._process_on_server(stream, batch_request_documents, processed_ids)
+            if stream.has_error():
+                raise ConnectionError(stream.messages[stream.error_topic][0][1])
 
     def _process_on_server(self, stream, batch_request_documents, processed_ids):
         document_request = self._create_batch(batch_request_documents)
         stream.client.publish('Sentiment/Analysis', document_request)
-        timeout = 30
         waited = 0
-        while len(processed_ids) > 0:
+        while len(processed_ids) > 0 and not stream.has_error():
             waited += 1
-            if (waited > timeout):
+            if (waited >= stream.connection.analysis_timeout):
                 raise TimeoutError()
             if stream.sentiment_result_topic in stream.messages:
                 waited = 0
@@ -180,8 +193,10 @@ class SentimentAnalysis(object):
                         id = document["Id"]
                         del processed_ids[id]
                         yield document
+            elif stream.is_done():
+                raise TimeoutError('Processing error')
 
-            time.sleep(1)
+            time.sleep(0.01)
 
     def _create_batch(self, documents):
         data = {}

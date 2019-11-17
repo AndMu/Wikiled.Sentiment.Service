@@ -2,7 +2,6 @@
 using Microsoft.Extensions.Logging;
 using System;
 using System.Linq;
-using System.Reactive.Linq;
 using System.Threading.Tasks;
 using Wikiled.Sentiment.Analysis.Processing;
 using Wikiled.Sentiment.Api.Request;

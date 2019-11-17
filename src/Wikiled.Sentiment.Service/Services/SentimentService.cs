@@ -94,6 +94,7 @@ namespace Wikiled.Sentiment.Service.Services
                 var allocation = await resourcesHandler.Allocate(eventArgs.ClientId).ConfigureAwait(false);
                 if (!allocation)
                 {
+                    eventArgs.ProcessingFailed = true;
                     await notifications
                         .SendUserMessage(eventArgs.ClientId, TopicConstants.Error, "Failed to allocate resources for training")
                         .ConfigureAwait(false);
@@ -102,7 +103,6 @@ namespace Wikiled.Sentiment.Service.Services
 
                 if (topicProcessings.Contains(eventArgs.ApplicationMessage.Topic))
                 {
-                    eventArgs.ProcessingFailed = true;
                     var tasks = topicProcessings[eventArgs.ApplicationMessage.Topic]
                         .Select(item => item.Process(eventArgs));
                     await Task.WhenAll(tasks).ConfigureAwait(false);

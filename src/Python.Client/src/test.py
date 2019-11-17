@@ -11,9 +11,8 @@ def sentiment_analysis():
     dictionary['BOOL'] = 1
 
     # with custom lexicon and Twitter type cleaning
-    analysis = SentimentAnalysis(SentimentConnection('TestConnection17'), documents, 'market', dictionary, clean=True,
-                                 model='Test')
-    for result in analysis:
+    analysis = SentimentAnalysis(SentimentConnection('TestConnection17'), 'market', dictionary, clean=True, model='Test')
+    for result in analysis.detect_sentiment_text(documents):
         print(result)
 
 

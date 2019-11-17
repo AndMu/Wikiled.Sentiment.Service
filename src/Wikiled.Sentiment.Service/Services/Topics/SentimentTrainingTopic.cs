@@ -71,9 +71,9 @@ namespace Wikiled.Sentiment.Service.Services.Topics
                 }
 
                 var positive = storage.Load(message.ClientId, request.Name, true)
-                                       .Take(20);
+                                       .Take(2000);
                 var negative = storage.Load(message.ClientId, request.Name, false)
-                                      .Take(20);
+                                      .Take(2000);
 
                 var documents = positive.Concat(negative).Select(item => converter.Convert(item, request.CleanText));
                 await client.Train(documents).ConfigureAwait(false);
