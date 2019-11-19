@@ -4,6 +4,8 @@ using System.Reactive.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using MQTTnet;
+using MQTTnet.Client.Options;
 using Wikiled.Common.Net.Client;
 using Wikiled.MachineLearning.Mathematics;
 using Wikiled.Sentiment.Api.Request;
@@ -13,18 +15,20 @@ namespace Wikiled.Sentiment.Api.Service
 {
     public class SentimentAnalysis : ISentimentAnalysis
     {
-        private readonly IStreamApiClient client;
-
         private readonly WorkRequest request;
 
         private readonly ILogger<SentimentAnalysis> logger;
 
-        public SentimentAnalysis(ILogger<SentimentAnalysis> logger, IStreamApiClientFactory factory, WorkRequest request)
+        private readonly IMqttClientChannelOptions clientOptions;
+
+        private readonly IMqttFactory factory;
+
+        public SentimentAnalysis(ILogger<SentimentAnalysis> logger, IMqttClientChannelOptions clientOptions, IMqttFactory factory, WorkRequest request)
         {
-            if (factory == null) throw new ArgumentNullException(nameof(factory));
             this.request = request ?? throw new ArgumentNullException(nameof(request));
             this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            client = factory.Construct();
+            this.clientOptions = clientOptions ?? throw new ArgumentNullException(nameof(clientOptions));
+            this.factory = factory ?? throw new ArgumentNullException(nameof(factory));
         }
 
         public Task<Document> Measure(string text, CancellationToken token)
@@ -68,7 +72,7 @@ namespace Wikiled.Sentiment.Api.Service
 
         public async Task<Document> Measure(SingleRequestData document, CancellationToken token)
         {
-            return await Measure(new [] {document}, token).FirstOrDefaultAsync();
+            return await Measure(new[] { document }, token).FirstOrDefaultAsync();
         }
 
         public IObservable<Document> Measure(SingleRequestData[] documents, CancellationToken token)
@@ -85,7 +89,8 @@ namespace Wikiled.Sentiment.Api.Service
 
             var current = (WorkRequest)request.Clone();
             current.Documents = documents;
-            return client.PostRequest<WorkRequest, Document>("api/sentiment/parsestream", current, token);
+            var mqttClient = factory.CreateMqttClient();
+            //return client.PostRequest<WorkRequest, Document>("api/sentiment/parsestream", current, token);
         }
     }
 }

@@ -30,9 +30,9 @@ namespace Wikiled.Sentiment.Service.Tests.Logic.Allocation
         {
             now = DateTime.UtcNow;
             userId = "Test1";
+            status = new Mock<IMqttClientStatus>();
             status.Setup(item => item.ClientId).Returns(() => userId);
             mockMqttServer = new Mock<IMqttServer>();
-            status = new Mock<IMqttClientStatus>();
             configuration = new Mock<IApplicationConfiguration>();
             instance = CreateResourcesHandler();
             configuration.Setup(item => item.Now).Returns(() => now);
@@ -92,7 +92,7 @@ namespace Wikiled.Sentiment.Service.Tests.Logic.Allocation
             var result = await instance.Allocate(userId).ConfigureAwait(false);
             Assert.IsTrue(result);
             userId = "Test2";
-            result = await instance.Allocate("Test2").ConfigureAwait(false);
+            result = await instance.Allocate(userId).ConfigureAwait(false);
             Assert.IsFalse(result);
         }
 

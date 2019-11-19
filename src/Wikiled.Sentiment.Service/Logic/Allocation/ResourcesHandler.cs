@@ -41,10 +41,12 @@ namespace Wikiled.Sentiment.Service.Logic.Allocation
                 return false;
             }
 
+            var endpoint = selected.Endpoint;
             var now = configuration.Now;
-            if (userProcessing.TryAdd(userId, (now.AddDays(1), selected)))
+            if (userProcessing.TryAdd(userId, (now.AddDays(1), selected)) &&
+                !ipProcessing.ContainsKey(endpoint))
             {
-                ipProcessing[selected.Endpoint] = true;
+                ipProcessing[endpoint] = true;
                 return true;
             }
 
@@ -53,7 +55,7 @@ namespace Wikiled.Sentiment.Service.Logic.Allocation
             {
                 logger.LogWarning("Reset expired session");
                 userProcessing[userId] = (now.AddDays(1), selected);
-                ipProcessing[selected.Endpoint] = true;
+                ipProcessing[endpoint] = true;
                 return true;
             }
 

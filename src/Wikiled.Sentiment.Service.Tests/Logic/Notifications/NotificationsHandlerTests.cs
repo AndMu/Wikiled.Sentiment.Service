@@ -1,21 +1,19 @@
-using System;
-using MQTTnet.Server;
 using Microsoft.Extensions.Logging;
 using Moq;
+using MQTTnet;
+using MQTTnet.Client.Publishing;
+using MQTTnet.Server;
 using NUnit.Framework;
+using NUnit.Framework.Internal;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using MQTTnet;
-using MQTTnet.Client.Publishing;
-using NUnit.Framework.Internal;
-using Wikiled.Common.Reflection;
 using Wikiled.Common.Testing.Utilities.Logging;
-using Wikiled.Common.Utilities.Serialization;
-using Wikiled.Sentiment.Service.Logic.Notifications;
 using Wikiled.Common.Testing.Utilities.Reflection;
 using Wikiled.Common.Utilities.Helpers;
+using Wikiled.Common.Utilities.Serialization;
 using Wikiled.Sentiment.Analysis.Pipeline;
+using Wikiled.Sentiment.Service.Logic.Notifications;
 
 namespace Wikiled.Sentiment.Service.Tests.Logic.Notifications
 {
@@ -56,7 +54,7 @@ namespace Wikiled.Sentiment.Service.Tests.Logic.Notifications
         public async Task SendMessage()
         {
             await instance.SendUserMessage("Test", "Message", "Data");
-            Assert.Fail();
+            mockMqttServer.Verify(item => item.PublishAsync(It.IsAny<MqttApplicationMessage>(), CancellationToken.None), Times.Once);
         }
 
         private NotificationsHandler CreateNotificationsHandler()
