@@ -10,7 +10,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Wikiled.Common.Utilities.Serialization;
 using Wikiled.Sentiment.Analysis.Pipeline;
-using Wikiled.Sentiment.Service.Services.Topics;
+using Wikiled.Sentiment.Api.Service.Flow;
 
 namespace Wikiled.Sentiment.Service.Logic.Notifications
 {
@@ -44,12 +44,10 @@ namespace Wikiled.Sentiment.Service.Logic.Notifications
                 throw new ArgumentNullException(nameof(item));
             }
 
-            await using (var memoryStream = memoryStreamManager.GetStream("Json"))
-            {
-                var stream = serializer.Serialize(item.Select(x => x.Processed).ToArray());
-                await stream.CopyToAsync(memoryStream).ConfigureAwait(false);
-                await Send($"{TopicConstants.SentimentAnalysisResult}/{userId}", memoryStream.ToArray()).ConfigureAwait(false);
-            }
+            await using var memoryStream = memoryStreamManager.GetStream("Json");
+            var stream = serializer.Serialize(item.Select(x => x.Processed).ToArray());
+            await stream.CopyToAsync(memoryStream).ConfigureAwait(false);
+            await Send(TopicConstants.GetResultPath(userId), memoryStream.ToArray()).ConfigureAwait(false);
         }
 
         public Task SendUserMessage(string userId, string type, string message)

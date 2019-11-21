@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Wikiled.Common.Utilities.Serialization;
 using Wikiled.Sentiment.Analysis.Containers;
 using Wikiled.Sentiment.Api.Request;
+using Wikiled.Sentiment.Api.Service.Flow;
 using Wikiled.Sentiment.Service.Logic;
 using Wikiled.Sentiment.Service.Logic.Storage;
 using Wikiled.Sentiment.Text.Parser;

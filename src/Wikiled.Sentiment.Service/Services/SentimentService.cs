@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Wikiled.Common.Utilities.Helpers;
+using Wikiled.Sentiment.Api.Service.Flow;
 using Wikiled.Sentiment.Service.Logic.Allocation;
 using Wikiled.Sentiment.Service.Logic.Notifications;
 using Wikiled.Sentiment.Service.Services.Topics;

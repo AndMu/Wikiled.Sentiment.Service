@@ -1,14 +1,12 @@
-﻿using System;
+﻿using Microsoft.Extensions.Logging;
+using System;
 using System.Linq;
 using System.Reactive.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-using MQTTnet;
-using MQTTnet.Client.Options;
-using Wikiled.Common.Net.Client;
 using Wikiled.MachineLearning.Mathematics;
 using Wikiled.Sentiment.Api.Request;
+using Wikiled.Sentiment.Api.Service.Mqtt;
 using Wikiled.Text.Analysis.Structure;
 
 namespace Wikiled.Sentiment.Api.Service
@@ -19,16 +17,14 @@ namespace Wikiled.Sentiment.Api.Service
 
         private readonly ILogger<SentimentAnalysis> logger;
 
-        private readonly IMqttClientChannelOptions clientOptions;
+      
 
-        private readonly IMqttFactory factory;
-
-        public SentimentAnalysis(ILogger<SentimentAnalysis> logger, IMqttClientChannelOptions clientOptions, IMqttFactory factory, WorkRequest request)
+        public SentimentAnalysis(ILogger<SentimentAnalysis> logger, WorkRequest request, IMqttConnection connection, MqttConnectionInfo connectionInfo)
         {
             this.request = request ?? throw new ArgumentNullException(nameof(request));
+            this.connection = connection ?? throw new ArgumentNullException(nameof(connection));
+            this.connectionInfo = connectionInfo ?? throw new ArgumentNullException(nameof(connectionInfo));
             this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            this.clientOptions = clientOptions ?? throw new ArgumentNullException(nameof(clientOptions));
-            this.factory = factory ?? throw new ArgumentNullException(nameof(factory));
         }
 
         public Task<Document> Measure(string text, CancellationToken token)
@@ -89,7 +85,8 @@ namespace Wikiled.Sentiment.Api.Service
 
             var current = (WorkRequest)request.Clone();
             current.Documents = documents;
-            var mqttClient = factory.CreateMqttClient();
+            await connection.Connect(connectionInfo, token)
+            //var mqttClient = factory.CreateMqttClient();
             //return client.PostRequest<WorkRequest, Document>("api/sentiment/parsestream", current, token);
         }
     }

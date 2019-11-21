@@ -12,6 +12,7 @@ using Wikiled.Common.Logging;
 using Wikiled.Common.Utilities.Serialization;
 using Wikiled.Sentiment.Analysis.Containers;
 using Wikiled.Sentiment.Api.Request;
+using Wikiled.Sentiment.Api.Service.Flow;
 using Wikiled.Sentiment.Service.Logic;
 using Wikiled.Sentiment.Service.Logic.Notifications;
 using Wikiled.Sentiment.Service.Logic.Storage;

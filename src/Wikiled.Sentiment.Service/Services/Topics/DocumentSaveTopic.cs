@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using MQTTnet;
 using Wikiled.Common.Utilities.Serialization;
 using Wikiled.Sentiment.Api.Request;
+using Wikiled.Sentiment.Api.Service.Flow;
 using Wikiled.Sentiment.Service.Logic.Storage;
 
 namespace Wikiled.Sentiment.Service.Services.Topics

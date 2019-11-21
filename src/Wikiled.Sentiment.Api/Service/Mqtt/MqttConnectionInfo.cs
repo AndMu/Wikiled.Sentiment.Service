@@ -1,20 +1,17 @@
 ﻿using System;
 
-namespace Wikiled.Sentiment.Service.Logic.Mqtt
+namespace Wikiled.Sentiment.Api.Service.Mqtt
 {
-    public class MqttRequest
+    public class MqttConnectionInfo
     {
-        public MqttRequest(Uri uri, string clientId, string topic)
+        public MqttConnectionInfo(Uri uri, string clientId)
         {
             Uri = uri ?? throw new ArgumentNullException(nameof(uri));
             ClientId = clientId ?? throw new ArgumentNullException(nameof(clientId));
-            Topic = topic ?? throw new ArgumentNullException(nameof(topic));
         }
 
         public Uri Uri { get; }
 
         public string ClientId { get; }
-
-        public string Topic { get; }
     }
 }
