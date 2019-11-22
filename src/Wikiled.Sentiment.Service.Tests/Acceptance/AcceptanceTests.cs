@@ -36,20 +36,21 @@ namespace Wikiled.Sentiment.Service.Tests.Acceptance
         [Test]
         public async Task Measure()
         {
-            var analysis = new SentimentAnalysis(
-                new NullLogger<SentimentAnalysis>(), 
-                new StreamApiClientFactory(new NullLoggerFactory(), wrapper.Client, wrapper.Client.BaseAddress),
-                new WorkRequest
-                {
-                    CleanText = true,
-                    Domain = "TwitterMarket"
-                });
-            var result = await analysis.Measure(
-                             "This market is so bad and it will get worse",
-                             CancellationToken.None).ConfigureAwait(false);
-            Assert.AreEqual(10, result.TotalWords);
-            Assert.AreEqual(1, result.Stars);
-            Assert.AreEqual(1, result.Sentences.Count);
+            //var analysis = new SentimentAnalysis(
+            //    new NullLogger<SentimentAnalysis>(), 
+            //    new StreamApiClientFactory(new NullLoggerFactory(), wrapper.Client, wrapper.Client.BaseAddress),
+            //    new WorkRequest
+            //    {
+            //        CleanText = true,
+            //        Domain = "TwitterMarket"
+            //    });
+            //var result = await analysis.Measure(
+            //                 "This market is so bad and it will get worse",
+            //                 CancellationToken.None).ConfigureAwait(false);
+            //Assert.AreEqual(10, result.TotalWords);
+            //Assert.AreEqual(1, result.Stars);
+            //Assert.AreEqual(1, result.Sentences.Count);
+            Assert.Fail();
         }
     }
 }

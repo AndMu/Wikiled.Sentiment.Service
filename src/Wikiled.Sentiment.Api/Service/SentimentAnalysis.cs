@@ -17,13 +17,9 @@ namespace Wikiled.Sentiment.Api.Service
 
         private readonly ILogger<SentimentAnalysis> logger;
 
-      
-
-        public SentimentAnalysis(ILogger<SentimentAnalysis> logger, WorkRequest request, IMqttConnection connection, MqttConnectionInfo connectionInfo)
+        public SentimentAnalysis(ILogger<SentimentAnalysis> logger, WorkRequest request)
         {
             this.request = request ?? throw new ArgumentNullException(nameof(request));
-            this.connection = connection ?? throw new ArgumentNullException(nameof(connection));
-            this.connectionInfo = connectionInfo ?? throw new ArgumentNullException(nameof(connectionInfo));
             this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -84,8 +80,9 @@ namespace Wikiled.Sentiment.Api.Service
             }
 
             var current = (WorkRequest)request.Clone();
-            current.Documents = documents;
-            await connection.Connect(connectionInfo, token)
+            throw new NotImplementedException();
+            //current.Documents = documents;
+            //await connection.Connect(connectionInfo, token)
             //var mqttClient = factory.CreateMqttClient();
             //return client.PostRequest<WorkRequest, Document>("api/sentiment/parsestream", current, token);
         }
