@@ -27,6 +27,7 @@ namespace Wikiled.Sentiment.Service.Controllers
         [HttpPost]
         public async Task<Document> Parse([FromBody]SingleRequestData review)
         {
+            if (review == null) throw new ArgumentNullException(nameof(review));
             if (review.Id == null)
             {
                 review.Id = Guid.NewGuid().ToString();

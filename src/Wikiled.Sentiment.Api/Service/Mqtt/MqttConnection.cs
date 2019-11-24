@@ -15,26 +15,27 @@ namespace Wikiled.Sentiment.Api.Service.Mqtt
     {
         private readonly ILogger<MqttConnection> logger;
 
-        private readonly IMqttClientFactory factory;
-
         private readonly ILoggerFactory loggerFactory;
 
         private IMqttClient client;
 
         private ConcurrentBag<IMqttSubscription> bag = new ConcurrentBag<IMqttSubscription>();
 
+        private bool connected;
+
         public MqttConnection(ILoggerFactory loggerFactory, IMqttClientFactory factory)
         {
+            if (factory == null) throw new ArgumentNullException(nameof(factory));
             this.loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
             logger = loggerFactory.CreateLogger<MqttConnection>();
-            this.factory = factory ?? throw new ArgumentNullException(nameof(factory));
+            this.client = factory.CreateMqttClient();
         }
       
         public async Task Connect(MqttConnectionInfo connectionInfo, CancellationToken token)
         {
             if (connectionInfo == null) throw new ArgumentNullException(nameof(connectionInfo));
 
-            if (client != null)
+            if (connected)
             {
                 throw new Exception("Already connected");
             }
@@ -44,24 +45,30 @@ namespace Wikiled.Sentiment.Api.Service.Mqtt
                           .WithProtocolVersion(MqttProtocolVersion.V310)
                           .WithClientId(connectionInfo.ClientId)
                           .Build();
-
-            client = factory.CreateMqttClient();
+            
             var authResult = await client.ConnectAsync(options, token).ConfigureAwait(false);
             logger.LogDebug("Mqtt connection result: {0}", authResult.ResultCode);
-
             if (authResult.ResultCode != MqttClientConnectResultCode.Success)
             {
                 throw new Exception($"Connection failed: {authResult}");
             }
+
+            connected = true;
         }
 
-        public IMqttSubscription CreateSubscription(string topic)
+        public Task Publish(string topic, byte[] data)
         {
-            if (client == null)
+            if (!connected)
             {
                 throw new Exception("Not connected yet");
             }
 
+            return client.PublishAsync(topic, data);
+
+        }
+
+        public IMqttSubscription CreateSubscription(string topic)
+        {
             var subscription = new MqttSubscription(loggerFactory.CreateLogger<MqttSubscription>(), client, topic);
             bag.Add(subscription);
             return subscription;

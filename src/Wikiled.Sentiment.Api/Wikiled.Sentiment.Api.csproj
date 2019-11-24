@@ -17,6 +17,7 @@
     <PackageReference Include="System.ComponentModel.Annotations" Version="4.6.0" />
     <PackageReference Include="System.Reactive" Version="4.2.0" />
     <PackageReference Include="Wikiled.Common.Net" Version="1.2.9" />
+    <PackageReference Include="Wikiled.Common.Utilities" Version="1.2.29" />
     <PackageReference Include="Wikiled.Text.Analysis" Version="1.7.42" />
   </ItemGroup>
 

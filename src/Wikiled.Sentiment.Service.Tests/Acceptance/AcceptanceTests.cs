@@ -1,10 +1,14 @@
+using System;
+using NUnit.Framework;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging.Abstractions;
-using NUnit.Framework;
+using Microsoft.Extensions.DependencyInjection;
 using Wikiled.Common.Net.Client;
+using Wikiled.Common.Utilities.Modules;
 using Wikiled.Sentiment.Api.Request;
 using Wikiled.Sentiment.Api.Service;
+using Wikiled.Sentiment.Api.Service.Module;
+using Wikiled.Sentiment.Api.Service.Mqtt;
 using Wikiled.Server.Core.Testing.Server;
 
 namespace Wikiled.Sentiment.Service.Tests.Acceptance
@@ -14,10 +18,17 @@ namespace Wikiled.Sentiment.Service.Tests.Acceptance
     {
         private ServerWrapper wrapper;
 
+        private ISentimentAnalysisSetup analysisSetup;
+
         [OneTimeSetUp]
         public void SetUp()
         {
             wrapper = ServerWrapper.Create<Startup>(TestContext.CurrentContext.TestDirectory, services => { });
+            var services = new ServiceCollection();
+            services.RegisterModule(
+                new SentimentApiModule(new MqttConnectionInfo(new Uri("http://localhost:1883"), "TestId")));
+            var provider = services.BuildServiceProvider();
+            analysisSetup = provider.GetService<ISentimentAnalysisSetup>();
         }
 
         [OneTimeTearDown]
@@ -36,20 +47,18 @@ namespace Wikiled.Sentiment.Service.Tests.Acceptance
         [Test]
         public async Task Measure()
         {
-            //var analysis = new SentimentAnalysis(
-            //    new NullLogger<SentimentAnalysis>(), 
-            //    new StreamApiClientFactory(new NullLoggerFactory(), wrapper.Client, wrapper.Client.BaseAddress),
-            //    new WorkRequest
-            //    {
-            //        CleanText = true,
-            //        Domain = "TwitterMarket"
-            //    });
-            //var result = await analysis.Measure(
-            //                 "This market is so bad and it will get worse",
-            //                 CancellationToken.None).ConfigureAwait(false);
-            //Assert.AreEqual(10, result.TotalWords);
-            //Assert.AreEqual(1, result.Stars);
-            //Assert.AreEqual(1, result.Sentences.Count);
+            var request = new WorkRequest
+            {
+                CleanText = true,
+                Domain = "TwitterMarket"
+            };
+
+            var result = await analysisSetup.Setup(request).Measure(
+                             "This market is so bad and it will get worse",
+                             CancellationToken.None).ConfigureAwait(false);
+            Assert.AreEqual(10, result.TotalWords);
+            Assert.AreEqual(1, result.Stars);
+            Assert.AreEqual(1, result.Sentences.Count);
             Assert.Fail();
         }
     }

@@ -6,7 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Wikiled.MachineLearning.Mathematics;
 using Wikiled.Sentiment.Api.Request;
-using Wikiled.Sentiment.Api.Service.Mqtt;
+using Wikiled.Sentiment.Api.Service.Flow;
 using Wikiled.Text.Analysis.Structure;
 
 namespace Wikiled.Sentiment.Api.Service
@@ -17,9 +17,12 @@ namespace Wikiled.Sentiment.Api.Service
 
         private readonly ILogger<SentimentAnalysis> logger;
 
-        public SentimentAnalysis(ILogger<SentimentAnalysis> logger, WorkRequest request)
+        private readonly ISentimentFlow flow;
+
+        public SentimentAnalysis(ILogger<SentimentAnalysis> logger, WorkRequest request, ISentimentFlow flow)
         {
             this.request = request ?? throw new ArgumentNullException(nameof(request));
+            this.flow = flow ?? throw new ArgumentNullException(nameof(flow));
             this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -80,11 +83,9 @@ namespace Wikiled.Sentiment.Api.Service
             }
 
             var current = (WorkRequest)request.Clone();
-            throw new NotImplementedException();
-            //current.Documents = documents;
-            //await connection.Connect(connectionInfo, token)
-            //var mqttClient = factory.CreateMqttClient();
-            //return client.PostRequest<WorkRequest, Document>("api/sentiment/parsestream", current, token);
+            
+            current.Documents = documents;
+            return flow.Start(current, token);
         }
     }
 }

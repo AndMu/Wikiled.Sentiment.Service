@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using MQTTnet;
 using System;
+using System.Reactive;
 using System.Reactive.Concurrency;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
@@ -14,7 +15,7 @@ using Wikiled.Text.Analysis.Structure;
 
 namespace Wikiled.Sentiment.Api.Service.Flow
 {
-    public class SentimentFlow
+    public class SentimentFlow : ISentimentFlow
     {
         private readonly ILogger<SentimentFlow> logger;
 
@@ -35,16 +36,17 @@ namespace Wikiled.Sentiment.Api.Service.Flow
             this.scheduler = scheduler ?? throw new ArgumentNullException(nameof(scheduler));
         }
 
-        public IObservable<Document> Start(SingleRequestData[] documents, CancellationToken token)
+        public IObservable<Document> Start(WorkRequest request, CancellationToken token)
         {
+            if (request == null) throw new ArgumentNullException(nameof(request));
             logger.LogDebug("Start");
 
-            return Observable.Create<Document>(async observer => await ProcessingLogic(documents, observer, token)
+            return Observable.Create<Document>(async observer => await ProcessingLogic(request, observer, token)
                                                    .ConfigureAwait(false))
-                             .Take(documents.Length);
+                             .Take(request.Documents.Length);
         }
 
-        private async Task<IDisposable> ProcessingLogic(SingleRequestData[] documents, IObserver<Document> observer, CancellationToken token)
+        private async Task<IDisposable> ProcessingLogic(WorkRequest request, IObserver<Document> observer, CancellationToken token)
         {
             var disposable = new CompositeDisposable();
             var connection = connectionFactory();
@@ -52,13 +54,16 @@ namespace Wikiled.Sentiment.Api.Service.Flow
             var dataStream = connection.CreateSubscription(TopicConstants.GetResultPath(connectionInfo.ClientId))
                                        .Subscription;
 
-            // if main data stream hasn't received anything withing 5 minutes - stop
-            var timeout = dataStream.Throttle(TimeSpan.FromMinutes(5), scheduler)
-                                    .Subscribe(item =>
-                                    {
-                                        logger.LogWarning("Stream Timeout");
-                                        connection.Dispose();
-                                    });
+            // if main data stream hasn't received anything within 5 minutes - stop
+            var timeout = dataStream.Select(item => Unit.Default)
+                .StartWith(Unit.Default)
+                .Throttle(TimeSpan.FromMinutes(5), scheduler)
+                .Subscribe(item =>
+                {
+                    logger.LogWarning("Stream Timeout");
+                    connection.Dispose();
+                    observer.OnCompleted();
+                });
 
             void ProcessData(MqttApplicationMessage message)
             {
@@ -97,6 +102,8 @@ namespace Wikiled.Sentiment.Api.Service.Flow
             }
 
             await connection.Connect(connectionInfo, token).ConfigureAwait(false);
+
+            await connection.Publish(TopicConstants.SentimentAnalysis, serializer.SerializeArray(request)).ConfigureAwait(false);
 
             disposable.Add(Disposable.Create(() => timeout.Dispose()));
             disposable.Add(dataStream.Subscribe(ProcessData));

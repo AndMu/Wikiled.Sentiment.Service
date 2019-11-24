@@ -8,6 +8,8 @@ namespace Wikiled.Sentiment.Api.Service.Mqtt
     {
         Task Connect(MqttConnectionInfo connectionInfo, CancellationToken token);
 
+        Task Publish(string topic, byte[] data);
+
         IMqttSubscription CreateSubscription(string topic);
     }
 }
