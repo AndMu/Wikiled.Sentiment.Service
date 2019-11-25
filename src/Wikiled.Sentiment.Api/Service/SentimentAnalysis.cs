@@ -1,30 +1,29 @@
-﻿using System;
+﻿using Microsoft.Extensions.Logging;
+using System;
 using System.Linq;
 using System.Reactive.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-using Wikiled.Common.Net.Client;
 using Wikiled.MachineLearning.Mathematics;
 using Wikiled.Sentiment.Api.Request;
+using Wikiled.Sentiment.Api.Service.Flow;
 using Wikiled.Text.Analysis.Structure;
 
 namespace Wikiled.Sentiment.Api.Service
 {
     public class SentimentAnalysis : ISentimentAnalysis
     {
-        private readonly IStreamApiClient client;
-
         private readonly WorkRequest request;
 
         private readonly ILogger<SentimentAnalysis> logger;
 
-        public SentimentAnalysis(ILogger<SentimentAnalysis> logger, IStreamApiClientFactory factory, WorkRequest request)
+        private readonly ISentimentFlow flow;
+
+        public SentimentAnalysis(ILogger<SentimentAnalysis> logger, WorkRequest request, ISentimentFlow flow)
         {
-            if (factory == null) throw new ArgumentNullException(nameof(factory));
             this.request = request ?? throw new ArgumentNullException(nameof(request));
+            this.flow = flow ?? throw new ArgumentNullException(nameof(flow));
             this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            client = factory.Construct();
         }
 
         public Task<Document> Measure(string text, CancellationToken token)
@@ -68,7 +67,7 @@ namespace Wikiled.Sentiment.Api.Service
 
         public async Task<Document> Measure(SingleRequestData document, CancellationToken token)
         {
-            return await Measure(new [] {document}, token).FirstOrDefaultAsync();
+            return await Measure(new[] { document }, token).FirstOrDefaultAsync();
         }
 
         public IObservable<Document> Measure(SingleRequestData[] documents, CancellationToken token)
@@ -84,8 +83,9 @@ namespace Wikiled.Sentiment.Api.Service
             }
 
             var current = (WorkRequest)request.Clone();
+            
             current.Documents = documents;
-            return client.PostRequest<WorkRequest, Document>("api/sentiment/parsestream", current, token);
+            return flow.Start(current, token);
         }
     }
 }

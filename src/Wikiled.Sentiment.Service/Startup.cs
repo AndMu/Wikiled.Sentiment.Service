@@ -2,18 +2,24 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using MQTTnet.AspNetCore;
+using MQTTnet.Protocol;
 using System;
-using System.Reactive.Concurrency;
 using System.Reflection;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Hosting;
 using Wikiled.Common.Logging;
 using Wikiled.Common.Utilities.Modules;
 using Wikiled.Common.Utilities.Resources;
 using Wikiled.Sentiment.Analysis.Containers;
-using Wikiled.Sentiment.Analysis.Processing;
 using Wikiled.Sentiment.Service.Logic;
+using Wikiled.Sentiment.Service.Logic.Allocation;
+using Wikiled.Sentiment.Service.Logic.Notifications;
+using Wikiled.Sentiment.Service.Logic.Storage;
+using Wikiled.Sentiment.Service.Services;
+using Wikiled.Sentiment.Service.Services.Topics;
+using Wikiled.Sentiment.Text.MachineLearning;
 using Wikiled.Sentiment.Text.Resources;
 using Wikiled.Server.Core.Errors;
 using Wikiled.Server.Core.Helpers;
@@ -61,11 +67,14 @@ namespace Wikiled.Sentiment.Service
             app.UseRequestLogging();
             app.UseExceptionHandlingMiddleware();
             app.UseHttpStatusCodeExceptionMiddleware();
+            app.UseMqttEndpoint();
 
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllerRoute("default", "{controller=Home}/{action=Index}/{id?}");
             });
+
+            app.UseMqttServer(server => app.ApplicationServices.GetRequiredService<SentimentService>().ConfigureMqttServer(server));
         }
 
         // This method gets called by the runtime. Use this method to add services to the container.
@@ -77,9 +86,7 @@ namespace Wikiled.Sentiment.Service
                 {
                     options.AddPolicy(
                         "CorsPolicy",
-                        itemBuider => itemBuider.AllowAnyOrigin()
-                                                .AllowAnyMethod()
-                                                .AllowAnyHeader());
+                        itemBuider => itemBuider.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
                 });
 
             // Add framework services.
@@ -91,8 +98,34 @@ namespace Wikiled.Sentiment.Service
             // Create the container builder.
             SetupTestClient(services);
             SetupOther(services);
-            logger.LogInformation("Ready!");
-            // Create the IServiceProvider based on the container.
+            ConfigureMqttServices(services);
+        }
+
+        private void ConfigureMqttServices(IServiceCollection services)
+        {
+            //this adds a hosted mqtt server to the services
+            services.AddHostedMqttServer(
+                builder =>
+                {
+                    builder.WithDefaultEndpointPort(1883);
+                    builder.WithConnectionValidator(
+                        c =>
+                        {
+                            if (c.ClientId.Length < 4)
+                            {
+                                c.ReasonCode = MqttConnectReasonCode.ClientIdentifierNotValid;
+                                return;
+                            }
+
+                            c.ReasonCode = MqttConnectReasonCode.Success;
+                        });
+                });
+
+            //this adds tcp server support based on System.Net.Socket
+            services.AddMqttTcpServerAdapter();
+
+            //this adds websocket support
+            services.AddMqttWebSocketServerAdapter();
         }
 
         private static void SetupOther(IServiceCollection builder)
@@ -119,10 +152,32 @@ namespace Wikiled.Sentiment.Service
                 .Wait();
 
             logger.LogInformation("Adding Lexicons...");
-            builder.AddSingleton<IScheduler>(TaskPoolScheduler.Default);
+            builder.RegisterModule<CommonModule>();
+            SetupSentiment(builder, configuration, path);
+        }
+
+        private static void SetupSentiment(IServiceCollection builder, ConfigurationHandler configuration, string path)
+        {
+            ParallelHelper.Options = new ParallelOptions();
+            ParallelHelper.Options.MaxDegreeOfParallelism = Environment.ProcessorCount / 2;
+            ParallelHelper.Options.MaxDegreeOfParallelism = ParallelHelper.Options.MaxDegreeOfParallelism > 6 
+                ? 6 
+                : ParallelHelper.Options.MaxDegreeOfParallelism;
+
             builder.RegisterModule(new SentimentMainModule());
-            builder.RegisterModule(new SentimentServiceModule(configuration) { Lexicons = path });
-            builder.AddTransient<IReviewSink, ReviewSink>();
+            builder.RegisterModule(new SentimentServiceModule(configuration) {Lexicons = path});
+
+            builder.AddSingleton<INotificationsHandler, NotificationsHandler>();
+            builder.AddSingleton<IResourcesHandler, ResourcesHandler>();
+
+            builder.AddSingleton<IDocumentStorage, SimpleDocumentStorage>();
+            builder.AddScoped<IDocumentConverter, DocumentConverter>();
+
+            builder.AddSingleton<ITopicProcessing, SentimentAnalysisTopic>();
+            builder.AddSingleton<ITopicProcessing, DocumentSaveTopic>();
+            builder.AddSingleton<ITopicProcessing, SentimentTrainingTopic>();
+
+            builder.AddSingleton<SentimentService>();
         }
     }
 }

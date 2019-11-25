@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Wikiled.Sentiment.Api.Request;
+using Wikiled.Sentiment.Text.Extensions;
 using Wikiled.Sentiment.Text.Parser;
 using Wikiled.Server.Core.ActionFilters;
 using Wikiled.Server.Core.Controllers;
@@ -26,6 +27,7 @@ namespace Wikiled.Sentiment.Service.Controllers
         [HttpPost]
         public async Task<Document> Parse([FromBody]SingleRequestData review)
         {
+            if (review == null) throw new ArgumentNullException(nameof(review));
             if (review.Id == null)
             {
                 review.Id = Guid.NewGuid().ToString();
@@ -40,8 +42,8 @@ namespace Wikiled.Sentiment.Service.Controllers
             document.Author = review.Author;
             document.Id = review.Id;
             document.DocumentTime = review.Date;
-            var result = await splitter.Process(new ParseRequest(document));
-            return result;
+            var result = await splitter.Process(new ParseRequest(document)).ConfigureAwait(false);
+            return result.Construct(null);
         }
     }
 }
