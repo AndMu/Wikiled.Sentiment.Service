@@ -28,7 +28,7 @@ namespace Wikiled.Sentiment.Api.Service.Mqtt
             if (factory == null) throw new ArgumentNullException(nameof(factory));
             this.loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
             logger = loggerFactory.CreateLogger<MqttConnection>();
-            this.client = factory.CreateMqttClient();
+            client = factory.CreateMqttClient();
         }
       
         public async Task Connect(MqttConnectionInfo connectionInfo, CancellationToken token)
