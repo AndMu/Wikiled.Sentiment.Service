@@ -32,7 +32,7 @@ namespace Wikiled.Sentiment.Api.Service.Flow
             this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
             this.connectionFactory = connection ?? throw new ArgumentNullException(nameof(connection));
             this.connectionInfo = connectionInfo ?? throw new ArgumentNullException(nameof(connectionInfo));
-            this.serializer = serializer;
+            this.serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
             this.scheduler = scheduler ?? throw new ArgumentNullException(nameof(scheduler));
         }
 

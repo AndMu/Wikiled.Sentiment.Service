@@ -84,7 +84,7 @@ namespace Wikiled.Sentiment.Service.Tests.Service.Flow
         [Test]
         public void Construct()
         {
-            ConstructorHelper.ConstructorMustThrowArgumentNullException<SentimentFlow>();
+            ConstructorHelper.ConstructorMustThrowArgumentNullException<SentimentFlow>(connectionInfo);
         }
 
         [Test]
