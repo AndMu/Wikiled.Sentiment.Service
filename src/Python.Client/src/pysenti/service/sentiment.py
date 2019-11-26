@@ -32,16 +32,16 @@ class Document(object):
 
 class SentimentConnection(object):
 
-    def __init__(self, client_id: str):
+    def __init__(self, host: str, web_port: int, stream_port: int, client_id: str):
         if client_id is None or len(client_id) < 4:
             raise ValueError('Client id is too short. Minimum 4 symbols')
 
         self.client_id = client_id
-        self.host = 'sentiment.wikiled.com'
-        self.host = 'localhost:5000'
+        self.host = host
+        self.host = f'{host}:{web_port}'
         self.batch_size = 200
-        self.broker_url = "localhost"
-        self.broker_port = 1883
+        self.broker_url = host
+        self.broker_port = stream_port
         # 100 ms
         self.step = 0.01
         # 15 minutes
