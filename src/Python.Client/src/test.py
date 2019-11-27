@@ -1,7 +1,7 @@
 import os
 from os import path
 
-from pysenti import SentimentAnalysis, SentimentConnection, Document
+from pypsenti import SentimentAnalysis, SentimentConnection, Document
 
 
 def sentiment_analysis():

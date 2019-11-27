@@ -34,7 +34,7 @@ namespace Wikiled.Sentiment.Service
             WebHost.CreateDefaultBuilder(args)
                 .UseStartup<Startup>()
                 .UseKestrel(o => {
-                    o.ListenAnyIP(5083, l => l.UseMqtt()); // mqtt pipeline
+                    //o.ListenAnyIP(1885, l => l.UseMqtt()); // mqtt pipeline
                     o.ListenAnyIP(5000); // default http pipeline
                 })
                 .ConfigureLogging(

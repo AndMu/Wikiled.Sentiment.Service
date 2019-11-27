@@ -107,7 +107,7 @@ namespace Wikiled.Sentiment.Service
             services.AddHostedMqttServer(
                 builder =>
                 {
-                    builder.WithDefaultEndpointPort(5083);
+                    builder.WithDefaultEndpointPort(1885);
                     builder.WithConnectionValidator(
                         c =>
                         {
