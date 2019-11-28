@@ -78,8 +78,9 @@ namespace Wikiled.Sentiment.Service.Logic.Notifications
 
         private async Task Send(string topic, byte[] data)
         {
+            logger.LogDebug("Send: {0}", topic);
             var messageItem = new MqttApplicationMessage();
-            messageItem.QualityOfServiceLevel = MqttQualityOfServiceLevel.AtMostOnce;
+            messageItem.QualityOfServiceLevel = MqttQualityOfServiceLevel.AtLeastOnce;
             messageItem.PayloadFormatIndicator = MqttPayloadFormatIndicator.CharacterData;
             messageItem.Topic = topic;
             messageItem.Payload = data;

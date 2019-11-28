@@ -18,8 +18,6 @@ namespace Wikiled.Sentiment.Service.Logic.Allocation
 
         private readonly ConcurrentDictionary<string, (DateTime Expire, IMqttClientStatus Status)> userProcessing = new ConcurrentDictionary<string, (DateTime Expire, IMqttClientStatus Status)>();
 
-        private readonly ConcurrentDictionary<string, bool> ipProcessing = new ConcurrentDictionary<string, bool>();
-
         private readonly IApplicationConfiguration configuration;
 
         public ResourcesHandler(ILogger<NotificationsHandler> logger, IMqttServer server, IApplicationConfiguration configuration)
@@ -41,21 +39,13 @@ namespace Wikiled.Sentiment.Service.Logic.Allocation
                 return false;
             }
 
-            var endpoint = selected.Endpoint;
             var now = configuration.Now;
-            if (userProcessing.TryAdd(userId, (now.AddDays(1), selected)) &&
-                !ipProcessing.ContainsKey(endpoint))
-            {
-                ipProcessing[endpoint] = true;
-                return true;
-            }
 
             if (userProcessing.TryGetValue(userId, out var session) &&
                 session.Expire <= now)
             {
                 logger.LogWarning("Reset expired session");
                 userProcessing[userId] = (now.AddDays(1), selected);
-                ipProcessing[endpoint] = true;
                 return true;
             }
 
@@ -65,12 +55,7 @@ namespace Wikiled.Sentiment.Service.Logic.Allocation
         public void Release(string userId)
         {
             logger.LogDebug("Release: {0}", userId);
-            if (userProcessing.TryRemove(userId, out var selected))
-            {
-                logger.LogDebug("Release Endpoint: {0}", selected.Status.Endpoint);
-                ipProcessing.TryRemove(selected.Status.Endpoint, out _);
-            }
-            
+            userProcessing.TryRemove(userId, out var selected);
         }
     }
 }

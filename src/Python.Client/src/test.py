@@ -4,9 +4,24 @@ from os import path
 
 from pypsenti import SentimentAnalysis, SentimentConnection, Document
 
+import logging
+# create logger
+logger = logging.getLogger('pypsenti')
+logger.setLevel(logging.DEBUG)
+
+# create console handler and set level to debug
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+
+# create formatter
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+# add formatter to ch
+ch.setFormatter(formatter)
+logger.addHandler(ch)
 
 user_name = socket.gethostname()
-connection = SentimentConnection(host='localhost', web_port=5000, stream_port=1883, client_id=user_name)
+connection = SentimentConnection(host='192.168.0.70', port=7044, client_id=user_name)
 
 def sentiment_analysis():
     documents = ['I like this bool :)', 'short it baby']
@@ -15,7 +30,8 @@ def sentiment_analysis():
     dictionary['BOOL'] = 1
 
     # with custom lexicon and Twitter type cleaning
-    analysis = SentimentAnalysis(connection, 'market', dictionary, clean=True, model='Test')
+    # analysis = SentimentAnalysis(connection, 'market', dictionary, clean=True, model='Test')
+    analysis = SentimentAnalysis(connection, 'market', dictionary, clean=True)
     for result in analysis.detect_sentiment_text(documents):
         print(result)
 

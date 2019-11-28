@@ -22,11 +22,11 @@ class Document(object):
 
     def get_dict(self):
         return {
-            "Id": self.id,
-            "Text": self.text,
-            "Author": self.author,
-            "isPositive": self.isPositive,
-            "date": self.date,
+            'Id': self.id,
+            'Text': self.text,
+            'Author': self.author,
+            'isPositive': self.isPositive,
+            'date': self.date,
         }
 
 
@@ -88,11 +88,12 @@ class SentimentStream(object):
         self.client.on_connect = self._on_connect
 
     def __enter__(self):
-        connection_result = self.client.connect(self.connection.broker_url, self.connection.broker_port)
-        self.client.subscribe(self.sentiment_result_topic)
-        self.client.subscribe(self.done_topic)
-        self.client.subscribe(self.error_topic)
-        self.client.subscribe(self.message_topic)
+        self.client.connect(self.connection.broker_url, self.connection.broker_port)
+        self.client.subscribe(self.sentiment_result_topic, qos=1)
+        self.client.subscribe(self.done_topic, qos=1)
+        self.client.subscribe(self.error_topic, qos=1)
+        self.client.subscribe(self.message_topic, qos=1)
+        logger.debug('Starting loop...')
         self.client.loop_start()
         return self
 
@@ -101,20 +102,18 @@ class SentimentStream(object):
         self.client.disconnect()
         return isinstance(value, TypeError)
 
-    def _on_connect(self, client, userdata, rc=0):
-        logger.info("Connected result code " + str(rc))
+    def _on_connect(client, userdata, flags, rc, properties=None):
+        logger.info('Connected result code ' + str(rc))
 
     def _on_disconnect(self, client, userdata, rc=0):
-        logger.info("Disconnected result code " + str(rc))
+        logger.info('Disconnected result code ' + str(rc))
         client.loop_stop()
 
     def _on_message(self, client, userdata, message):
         if message.topic not in self.messages:
             self.messages[message.topic] = []
         payload = str(message.payload.decode("utf-8"))
-        logger.debug("message topic=", message.topic)
-        logger.debug("message qos=", message.qos)
-        logger.debug("message retain flag=", message.retain)
+        logger.debug(f'message topic={message.topic} qos={message.qos} retain flag={message.retain}')
         self.messages[message.topic].append((message, payload))
         if message.topic == self.error_topic:
             logger.error(payload)
@@ -136,7 +135,7 @@ class SentimentAnalysis(object):
     def __init__(self, connection: SentimentConnection, domain: str = None, lexicon: dict = None, clean: bool = False,
                  model: str = None):
         if domain is not None and domain.lower() not in [x.lower() for x in connection.supported_domains]:
-             raise ValueError("Not supported domain:" + domain)
+             raise ValueError('Not supported domain:' + domain)
         self.connection = connection
         self.domain = domain
         self.lexicon = lexicon
@@ -151,11 +150,13 @@ class SentimentAnalysis(object):
                 'CleanText': self.clean
             }
 
-            stream.client.publish('Sentiment/Train', json.dumps(request, indent=2))
+            logger.info('Sending Train Command...')
+            stream.client.publish('Sentiment/Train', json.dumps(request, indent=2), qos=1)
             waited = 0
             while not stream.has_error() and not stream.is_done():
                 waited += 1
                 if (waited >= stream.connection.train_timeout):
+                    logger.error('Timeout!')
                     raise TimeoutError()
                 time.sleep(1)
             if stream.has_error():
@@ -177,15 +178,18 @@ class SentimentAnalysis(object):
                     index += 1
                 yield from self._process_on_server(stream, batch_request_documents, processed_ids)
             if stream.has_error():
-                raise ConnectionError(stream.messages[stream.error_topic][0][1])
+                raise ConnectionError(stream.messages[stream.error_topic][0])
 
     def _process_on_server(self, stream, batch_request_documents, processed_ids):
         document_request = self._create_batch(batch_request_documents)
-        stream.client.publish('Sentiment/Analysis', document_request)
+        logger.info('Sending Analysis Command...')
+        stream.client.publish('Sentiment/Analysis', document_request, qos=1)
         waited = 0
+        logger.debug('Processing...')
         while len(processed_ids) > 0 and not stream.has_error():
             waited += 1
             if (waited >= stream.connection.analysis_timeout):
+                logger.error('Timeout!')
                 raise TimeoutError()
             if stream.sentiment_result_topic in stream.messages:
                 waited = 0
@@ -194,8 +198,8 @@ class SentimentAnalysis(object):
                     documents = json.loads(message[0].payload)
                     messages.remove(message)
                     for document in documents:
-                        id = document["Id"]
-                        del processed_ids[id]
+                        document_id = document['Id']
+                        del processed_ids[document_id]
                         yield document
             elif stream.is_done():
                 raise TimeoutError('Processing error')
