@@ -85,6 +85,7 @@ class SentimentStream(object):
         self.client = Client(client_id=self.connection.client_id, transport='websockets')
         self.client.on_message = self._on_message
         self.client.on_disconnect = self._on_disconnect
+        self.client.on_connect = self._on_connect
 
     def __enter__(self):
         connection_result = self.client.connect(self.connection.broker_url, self.connection.broker_port)
@@ -99,6 +100,9 @@ class SentimentStream(object):
         self.client.loop_stop()
         self.client.disconnect()
         return isinstance(value, TypeError)
+
+    def _on_connect(self, client, userdata, rc=0):
+        logger.info("Connected result code " + str(rc))
 
     def _on_disconnect(self, client, userdata, rc=0):
         logger.info("Disconnected result code " + str(rc))

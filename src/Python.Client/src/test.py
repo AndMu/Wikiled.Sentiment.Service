@@ -1,8 +1,12 @@
 import os
+import socket
 from os import path
 
 from pypsenti import SentimentAnalysis, SentimentConnection, Document
 
+
+user_name = socket.gethostname()
+connection = SentimentConnection(host='localhost', web_port=5000, stream_port=1883, client_id=user_name)
 
 def sentiment_analysis():
     documents = ['I like this bool :)', 'short it baby']
@@ -11,7 +15,7 @@ def sentiment_analysis():
     dictionary['BOOL'] = 1
 
     # with custom lexicon and Twitter type cleaning
-    analysis = SentimentAnalysis(SentimentConnection('TestConnection17'), 'market', dictionary, clean=True, model='Test')
+    analysis = SentimentAnalysis(connection, 'market', dictionary, clean=True, model='Test')
     for result in analysis.detect_sentiment_text(documents):
         print(result)
 
@@ -32,7 +36,7 @@ def read_documents(path_folder: str, class_type: bool):
 
 
 def save_documents():
-    connection = SentimentConnection('TestConnection17')
+
     all_documents = read_documents('E:/DataSets/aclImdb/All/Train/neg', False)
     connection.save_documents('Test', all_documents)
 

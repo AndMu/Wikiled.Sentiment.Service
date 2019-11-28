@@ -67,12 +67,17 @@ namespace Wikiled.Sentiment.Service
             app.UseRequestLogging();
             app.UseExceptionHandlingMiddleware();
             app.UseHttpStatusCodeExceptionMiddleware();
-            app.UseMqttEndpoint();
 
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllerRoute("default", "{controller=Home}/{action=Index}/{id?}");
             });
+
+            app.UseEndpoints(c => c.MapConnectionHandler<MqttConnectionHandler>("/mqtt",
+                                                                                options =>
+                                                                                {
+                                                                                    options.WebSockets.SubProtocolSelector = MQTTnet.AspNetCore.ApplicationBuilderExtensions.SelectSubProtocol;
+                                                                                }));
 
             app.UseMqttServer(server => app.ApplicationServices.GetRequiredService<SentimentService>().ConfigureMqttServer(server));
         }
@@ -105,27 +110,25 @@ namespace Wikiled.Sentiment.Service
         {
             //this adds a hosted mqtt server to the services
             services.AddHostedMqttServer(
-                builder =>
-                {
-                    builder.WithDefaultEndpointPort(1885);
-                    builder.WithConnectionValidator(
-                        c =>
+                        builder =>
                         {
-                            if (c.ClientId.Length < 4)
-                            {
-                                c.ReasonCode = MqttConnectReasonCode.ClientIdentifierNotValid;
-                                return;
-                            }
+                            builder.WithoutDefaultEndpoint();
+                            builder.WithConnectionValidator(
+                                c =>
+                                {
+                                    if (c.ClientId.Length < 4)
+                                    {
+                                        c.ReasonCode = MqttConnectReasonCode.ClientIdentifierNotValid;
+                                        return;
+                                    }
 
-                            c.ReasonCode = MqttConnectReasonCode.Success;
-                        });
-                });
-
-            //this adds tcp server support based on System.Net.Socket
+                                    c.ReasonCode = MqttConnectReasonCode.Success;
+                                });
+                        })
+                    .AddMqttConnectionHandler()
+                    .AddConnections();
+            
             services.AddMqttTcpServerAdapter();
-
-            //this adds websocket support
-            services.AddMqttWebSocketServerAdapter();
         }
 
         private static void SetupOther(IServiceCollection builder)
