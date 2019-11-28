@@ -41,6 +41,11 @@ namespace Wikiled.Sentiment.Service.Logic.Allocation
 
             var now = configuration.Now;
 
+            if (userProcessing.TryAdd(userId, (now.AddDays(1), selected)) )
+            {
+                return true;
+            }
+
             if (userProcessing.TryGetValue(userId, out var session) &&
                 session.Expire <= now)
             {
