@@ -20,6 +20,7 @@ using Wikiled.Sentiment.Service.Logic.Storage;
 using Wikiled.Sentiment.Service.Services;
 using Wikiled.Sentiment.Service.Services.Topics;
 using Wikiled.Sentiment.Text.MachineLearning;
+using Wikiled.Sentiment.Text.Parser;
 using Wikiled.Sentiment.Text.Resources;
 using Wikiled.Server.Core.Errors;
 using Wikiled.Server.Core.Helpers;
@@ -80,6 +81,9 @@ namespace Wikiled.Sentiment.Service
                                                                                 }));
 
             app.UseMqttServer(server => app.ApplicationServices.GetRequiredService<SentimentService>().ConfigureMqttServer(server));
+
+            // pre-warm
+            provider.GetService<LexiconLoader>();
         }
 
         // This method gets called by the runtime. Use this method to add services to the container.

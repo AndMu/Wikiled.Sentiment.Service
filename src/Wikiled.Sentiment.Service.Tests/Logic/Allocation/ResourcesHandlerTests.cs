@@ -47,27 +47,24 @@ namespace Wikiled.Sentiment.Service.Tests.Logic.Allocation
         }
 
         [Test]
-        public async Task AllocateTraining()
+        public async Task Allocate()
         {
-            status.Setup(item => item.Endpoint).Returns("XXX");
             var result = await instance.Allocate(userId).ConfigureAwait(false);
             Assert.IsTrue(result);
         }
 
         [Test]
-        public async Task AllocateTrainingAllocated()
+        public async Task AllocateAllocated()
         {
-            status.Setup(item => item.Endpoint).Returns("XXX");
             await instance.Allocate(userId).ConfigureAwait(false);
             var result = await instance.Allocate(userId).ConfigureAwait(false);
             Assert.IsFalse(result);
         }
 
         [Test]
-        public async Task AllocateTrainingExpired()
+        public async Task AllocateExpired()
         {
             status.Setup(item => item.ClientId).Returns(userId);
-            status.Setup(item => item.Endpoint).Returns("XXX");
             await instance.Allocate(userId).ConfigureAwait(false);
             now = now.AddDays(2);
             var result = await instance.Allocate(userId).ConfigureAwait(false);
@@ -75,7 +72,7 @@ namespace Wikiled.Sentiment.Service.Tests.Logic.Allocation
         }
 
         [Test]
-        public async Task AllocateTrainingTwoDifferent()
+        public async Task AllocateTwoDifferent()
         {
             status.SetupSequence(item => item.Endpoint).Returns("XXX").Returns("XXX1");
             var result = await instance.Allocate(userId).ConfigureAwait(false);
@@ -85,19 +82,9 @@ namespace Wikiled.Sentiment.Service.Tests.Logic.Allocation
             Assert.IsTrue(result);
         }
 
+     
         [Test]
-        public async Task AllocateTrainingTwoDifferentSameIp()
-        {
-            status.Setup(item => item.Endpoint).Returns("XXX");
-            var result = await instance.Allocate(userId).ConfigureAwait(false);
-            Assert.IsTrue(result);
-            userId = "Test2";
-            result = await instance.Allocate(userId).ConfigureAwait(false);
-            Assert.IsFalse(result);
-        }
-
-        [Test]
-        public async Task AllocateTrainingUnknownSession()
+        public async Task AllocateUnknownSession()
         {
             var result = await instance.Allocate("XXX").ConfigureAwait(false);
             Assert.IsFalse(result);
@@ -112,8 +99,6 @@ namespace Wikiled.Sentiment.Service.Tests.Logic.Allocation
         [Test]
         public async Task Release()
         {
-            status.Setup(item => item.Endpoint).Returns("XXX");
-
             var result = await instance.Allocate(userId).ConfigureAwait(false);
             Assert.IsTrue(result);
             result = await instance.Allocate(userId).ConfigureAwait(false);
