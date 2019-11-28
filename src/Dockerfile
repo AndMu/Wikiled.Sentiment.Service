@@ -11,7 +11,7 @@ WORKDIR /app
 COPY --from=builder /app .
 ENV ASPNETCORE_ENVIRONMENT Production
 
-EXPOSE 5000 5083
+#EXPOSE 5000 5083
 
 ENTRYPOINT ["dotnet", "Wikiled.Sentiment.Service.dll"]
 

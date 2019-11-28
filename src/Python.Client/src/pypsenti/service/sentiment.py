@@ -32,16 +32,16 @@ class Document(object):
 
 class SentimentConnection(object):
 
-    def __init__(self, host: str, web_port: int, stream_port: int, client_id: str):
+    def __init__(self, host: str, port: int, client_id: str):
         if client_id is None or len(client_id) < 4:
             raise ValueError('Client id is too short. Minimum 4 symbols')
 
         self.client_id = client_id
         self.host = host
-        self.host = f'{host}:{web_port}'
+        self.host = f'{host}:{port}'
         self.batch_size = 200
         self.broker_url = host
-        self.broker_port = stream_port
+        self.broker_port = port
         # 100 ms
         self.step = 0.01
         # 15 minutes
@@ -82,9 +82,10 @@ class SentimentStream(object):
         self.error_topic = f'Error/{self.connection.client_id}'
         self.done_topic = f'Sentiment/Done/{self.connection.client_id}'
 
-        self.client = Client(client_id=self.connection.client_id)
+        self.client = Client(client_id=self.connection.client_id, transport='websockets')
         self.client.on_message = self._on_message
         self.client.on_disconnect = self._on_disconnect
+        self.client.on_connect = self._on_connect
 
     def __enter__(self):
         connection_result = self.client.connect(self.connection.broker_url, self.connection.broker_port)
@@ -99,6 +100,9 @@ class SentimentStream(object):
         self.client.loop_stop()
         self.client.disconnect()
         return isinstance(value, TypeError)
+
+    def _on_connect(self, client, userdata, rc=0):
+        logger.info("Connected result code " + str(rc))
 
     def _on_disconnect(self, client, userdata, rc=0):
         logger.info("Disconnected result code " + str(rc))
