@@ -82,19 +82,27 @@ class SentimentStream(object):
         self.error_topic = f'Error/{self.connection.client_id}'
         self.done_topic = f'Sentiment/Done/{self.connection.client_id}'
 
+        self.connected = False
+        self.connection_failed = False
         self.client = Client(client_id=self.connection.client_id, transport='websockets')
         self.client.on_message = self._on_message
         self.client.on_disconnect = self._on_disconnect
         self.client.on_connect = self._on_connect
 
     def __enter__(self):
-        self.client.connect(self.connection.broker_url, self.connection.broker_port)
-        self.client.subscribe(self.sentiment_result_topic, qos=1)
-        self.client.subscribe(self.done_topic, qos=1)
-        self.client.subscribe(self.error_topic, qos=1)
-        self.client.subscribe(self.message_topic, qos=1)
-        logger.debug('Starting loop...')
+        logger.debug('Opening Connection...')
         self.client.loop_start()
+        self.client.connect(self.connection.broker_url, self.connection.broker_port)
+        counter = 0
+        while not self.connected:  # wait in loop
+            counter += 1
+            time.sleep(1)
+            if counter > 5:
+                raise ConnectionError('Connection Timeout!')
+        if self.connection_failed:
+            raise ConnectionError('Connection Failed')
+
+        logger.debug('Connected!')
         return self
 
     def __exit__(self, type, value, traceback):
@@ -102,8 +110,24 @@ class SentimentStream(object):
         self.client.disconnect()
         return isinstance(value, TypeError)
 
-    def _on_connect(client, userdata, flags, rc, properties=None):
+    def _on_connect(self, client, userdata, flags, rc, properties=None):
         logger.info('Connected result code ' + str(rc))
+        self.connected = True
+        if rc == 0:
+            logger.debug(f'Subscribing {self.sentiment_result_topic}')
+            self.client.subscribe(self.sentiment_result_topic, qos=1)
+
+            logger.debug(f'Subscribing {self.done_topic}')
+            self.client.subscribe(self.done_topic, qos=1)
+
+            logger.debug(f'Subscribing {self.error_topic}')
+            self.client.subscribe(self.error_topic, qos=1)
+
+            logger.debug(f'Subscribing {self.message_topic}')
+            self.client.subscribe(self.message_topic, qos=1)
+        else:
+            logger.error('Bad connection Returned code= ' + rc)
+            self.connection_failed = True
 
     def _on_disconnect(self, client, userdata, rc=0):
         logger.info('Disconnected result code ' + str(rc))

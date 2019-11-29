@@ -23,6 +23,7 @@ logger.addHandler(ch)
 user_name = socket.gethostname()
 connection = SentimentConnection(host='192.168.0.70', port=7044, client_id=user_name)
 
+
 def sentiment_analysis():
     documents = ['I like this bool :)', 'short it baby']
     dictionary = {}
