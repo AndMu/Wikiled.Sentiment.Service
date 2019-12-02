@@ -1,12 +1,37 @@
 import json
+import logging
 import time
 import uuid
 
-from paho.mqtt.client import Client
+from paho.mqtt.client import Client, MQTTv311
 
+from pypsenti.service.mqtt import Callbacks
 from ..helpers.utilities import batch
 from requests import Session
 from ..service import logger
+
+logger_on = False
+
+
+def add_logger():
+    global logger_on
+    if logger_on:
+        return
+
+    logger_on = True
+    # create logger
+    logger.setLevel(logging.DEBUG)
+
+    # create console handler and set level to debug
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+
+    # create formatter
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+    # add formatter to ch
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
 
 
 class Document(object):
@@ -74,6 +99,7 @@ class SentimentConnection(object):
 class SentimentStream(object):
 
     def __init__(self, connection: SentimentConnection):
+        global logger_on
         self.connection = connection
         self.messages = {}
         logger.info(f'Setting up connection to {self.connection.host} for {self.connection.client_id}')
@@ -81,77 +107,66 @@ class SentimentStream(object):
         self.message_topic = f'Message/{self.connection.client_id}'
         self.error_topic = f'Error/{self.connection.client_id}'
         self.done_topic = f'Sentiment/Done/{self.connection.client_id}'
+        self.done_flag = False
 
-        self.connected = False
-        self.connection_failed = False
-        self.client = Client(client_id=self.connection.client_id, transport='websockets')
-        self.client.on_message = self._on_message
-        self.client.on_disconnect = self._on_disconnect
-        self.client.on_connect = self._on_connect
+        self.client = Client(client_id=self.connection.client_id, protocol=MQTTv311, transport='websockets')
+        self.callback = Callbacks()
+        self.callback.register(self.client)
+        if logger_on:
+            self.client.enable_logger(logger)
 
     def __enter__(self):
         logger.debug('Opening Connection...')
-        self.client.loop_start()
         self.client.connect(self.connection.broker_url, self.connection.broker_port)
-        counter = 0
-        while not self.connected:  # wait in loop
-            counter += 1
-            time.sleep(1)
-            if counter > 5:
-                raise ConnectionError('Connection Timeout!')
-        if self.connection_failed:
-            raise ConnectionError('Connection Failed')
-
-        logger.debug('Connected!')
+        self.client.loop_start()
+        self.callback.wait_connected()
+        self._subscribe(self.sentiment_result_topic)
+        self._subscribe(self.done_topic)
+        self._subscribe(self.error_topic)
+        self._subscribe(self.message_topic)
+        logger.debug(f'Ready!!!')
         return self
 
     def __exit__(self, type, value, traceback):
-        self.client.loop_stop()
+        logger.debug('Closing Connection...')
         self.client.disconnect()
+        self.client.loop_stop()
         return isinstance(value, TypeError)
 
-    def _on_connect(self, client, userdata, flags, rc, properties=None):
-        logger.info('Connected result code ' + str(rc))
-        self.connected = True
-        if rc == 0:
-            logger.debug(f'Subscribing {self.sentiment_result_topic}')
-            self.client.subscribe(self.sentiment_result_topic, qos=1)
+    def publish(self, topic, request):
+        self.client.publish(topic, json.dumps(request, indent=2), qos=1)
+        self.callback.wait_published()
 
-            logger.debug(f'Subscribing {self.done_topic}')
-            self.client.subscribe(self.done_topic, qos=1)
+    def wait_message(self):
+        logger.debug('wait_message')
+        while True:
+            message = self._process_message(self.callback.wait_messages())
+            if message != None:
+                return message
 
-            logger.debug(f'Subscribing {self.error_topic}')
-            self.client.subscribe(self.error_topic, qos=1)
+    def _subscribe(self, topic, qos_level=1):
+        logger.debug("subscribing to topic" + topic)
+        sub_rc = self.client.subscribe(topic, int(qos_level))
+        logger.debug("subscribe returned " + str(sub_rc))
+        self.callback.wait_subscribed()
 
-            logger.debug(f'Subscribing {self.message_topic}')
-            self.client.subscribe(self.message_topic, qos=1)
-        else:
-            logger.error('Bad connection Returned code= ' + rc)
-            self.connection_failed = True
-
-    def _on_disconnect(self, client, userdata, rc=0):
-        logger.info('Disconnected result code ' + str(rc))
-        client.loop_stop()
-
-    def _on_message(self, client, userdata, message):
-        if message.topic not in self.messages:
-            self.messages[message.topic] = []
-        payload = str(message.payload.decode("utf-8"))
+    def _process_message(self, message):
+        message = message['message']
         logger.debug(f'message topic={message.topic} qos={message.qos} retain flag={message.retain}')
-        self.messages[message.topic].append((message, payload))
+        payload = str(message.payload.decode('utf-8-sig'))
         if message.topic == self.error_topic:
-            logger.error(payload)
+            raise ConnectionError(payload)
+        elif message.topic == self.done_topic:
+            logger.info('Received Done!')
+            self.done_flag = True
         elif message.topic == self.message_topic:
             logger.info(payload)
+        elif message.topic == self.sentiment_result_topic:
+            return payload
+        else:
+            raise ConnectionError('Unknown message: ' + message.topic)
 
-    def has_error(self):
-        return self.error_topic in self.messages
-
-    def is_done(self):
-        return self.done_topic in self.messages
-
-    def has_messages(self):
-        return self.done_topic in self.messages
+        return None
 
 
 class SentimentAnalysis(object):
@@ -175,16 +190,8 @@ class SentimentAnalysis(object):
             }
 
             logger.info('Sending Train Command...')
-            stream.client.publish('Sentiment/Train', json.dumps(request, indent=2), qos=1)
-            waited = 0
-            while not stream.has_error() and not stream.is_done():
-                waited += 1
-                if (waited >= stream.connection.train_timeout):
-                    logger.error('Timeout!')
-                    raise TimeoutError()
-                time.sleep(1)
-            if stream.has_error():
-                raise ConnectionError(stream.messages[stream.error_topic][0][1])
+            stream.publish('Sentiment/Train', request)
+            stream.wait_message()
 
     def detect_sentiment_text(self, documents: list):
         document_pack = [Document(None, item) for item in documents]
@@ -201,34 +208,20 @@ class SentimentAnalysis(object):
                     processed_ids[document.id] = index
                     index += 1
                 yield from self._process_on_server(stream, batch_request_documents, processed_ids)
-            if stream.has_error():
-                raise ConnectionError(stream.messages[stream.error_topic][0])
 
     def _process_on_server(self, stream, batch_request_documents, processed_ids):
         document_request = self._create_batch(batch_request_documents)
         logger.info('Sending Analysis Command...')
-        stream.client.publish('Sentiment/Analysis', document_request, qos=1)
-        waited = 0
+        stream.publish('Sentiment/Analysis', document_request)
         logger.debug('Processing...')
-        while len(processed_ids) > 0 and not stream.has_error():
-            waited += 1
-            if (waited >= stream.connection.analysis_timeout):
-                logger.error('Timeout!')
-                raise TimeoutError()
-            if stream.sentiment_result_topic in stream.messages:
-                waited = 0
-                messages = stream.messages[stream.sentiment_result_topic]
-                for message in messages:
-                    documents = json.loads(message[0].payload)
-                    messages.remove(message)
-                    for document in documents:
-                        document_id = document['Id']
-                        del processed_ids[document_id]
-                        yield document
-            elif stream.is_done():
-                raise TimeoutError('Processing error')
-
-            time.sleep(0.01)
+        while len(processed_ids) > 0:
+            message = stream.wait_message()
+            if message is not None:
+                documents = json.loads(message, encoding='utf-8')
+                for document in documents:
+                    document_id = document['Id']
+                    del processed_ids[document_id]
+                    yield document
 
     def _create_batch(self, documents):
         data = {}
@@ -239,7 +232,6 @@ class SentimentAnalysis(object):
             data['domain'] =self.domain
         data['documents'] = documents
         data['model'] = self.model
-        return json.dumps(data, indent=2)
-
+        return data
 
 
