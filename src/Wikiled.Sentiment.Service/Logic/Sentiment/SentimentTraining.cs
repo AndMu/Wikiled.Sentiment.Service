@@ -14,20 +14,20 @@ using Wikiled.Sentiment.Text.Parser;
 
 namespace Wikiled.Sentiment.Service.Services.Topics
 {
-    public class SentimentTrainingTopic : ITopicProcessing
+    public class SentimentTraining : ITopicProcessing
     {
         private readonly IDocumentStorage storage;
 
         private readonly IJsonSerializer serializer;
 
-        private readonly ILogger<SentimentTrainingTopic> logger;
+        private readonly ILogger<SentimentTraining> logger;
 
         private readonly IServiceProvider provider;
 
         private readonly ILexiconLoader lexiconLoader;
 
-        public SentimentTrainingTopic(
-            ILogger<SentimentTrainingTopic> logger,
+        public SentimentTraining(
+            ILogger<SentimentTraining> logger,
             IJsonSerializer serializer,
             IDocumentStorage storage,
             ILexiconLoader lexiconLoader,

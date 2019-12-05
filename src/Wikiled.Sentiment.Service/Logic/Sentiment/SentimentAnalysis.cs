@@ -4,10 +4,10 @@ using System.Linq;
 using System.Reactive;
 using System.Reactive.Concurrency;
 using System.Reactive.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using MQTTnet;
 using Wikiled.Common.Logging;
 using Wikiled.Common.Utilities.Serialization;
 using Wikiled.Sentiment.Analysis.Containers;
@@ -18,14 +18,16 @@ using Wikiled.Sentiment.Service.Logic.Notifications;
 using Wikiled.Sentiment.Service.Logic.Storage;
 using Wikiled.Sentiment.Text.Parser;
 using Wikiled.Sentiment.Text.Sentiment;
+using Wikiled.WebSockets.Definitions.Messages;
+using Wikiled.WebSockets.Server.Context;
 
 namespace Wikiled.Sentiment.Service.Services.Topics
 {
-    public class SentimentAnalysisTopic : ITopicProcessing
+    public class SentimentAnalysis
     {
         private readonly IJsonSerializer serializer;
 
-        private readonly ILogger<SentimentAnalysisTopic> logger;
+        private readonly ILogger<SentimentAnalysis> logger;
 
         private readonly ILexiconLoader lexiconLoader;
 
@@ -37,8 +39,8 @@ namespace Wikiled.Sentiment.Service.Services.Topics
 
         private readonly IDocumentStorage storage;
 
-        public SentimentAnalysisTopic(
-            ILogger<SentimentAnalysisTopic> logger,
+        public SentimentAnalysis(
+            ILogger<SentimentAnalysis> logger,
             IJsonSerializer serializer,
             ILexiconLoader lexiconLoader,
             IScheduler scheduler,
@@ -57,7 +59,7 @@ namespace Wikiled.Sentiment.Service.Services.Topics
 
         public string Topic => TopicConstants.SentimentAnalysis;
 
-        public async Task Process(MqttApplicationMessageReceivedEventArgs message)
+        public async Task Process(SubscribeMessage message, CancellationToken token)
         {
             if (message == null)
             {

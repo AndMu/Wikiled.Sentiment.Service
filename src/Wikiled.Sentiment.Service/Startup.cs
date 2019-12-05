@@ -4,8 +4,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using MQTTnet.AspNetCore;
-using MQTTnet.Protocol;
 using System;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -80,7 +78,7 @@ namespace Wikiled.Sentiment.Service
 
             app.Map("/stream", ws =>
                 {
-                    ws.UseMiddleware<ResponseEnricherMiddleware>();
+                    //ws.UseMiddleware<ResponseEnricherMiddleware>();
                     ws.UseWebSockets();
                     ws.UseMiddleware<WebSocketMiddleware>();
                 }
@@ -111,33 +109,33 @@ namespace Wikiled.Sentiment.Service
             // Create the container builder.
             SetupTestClient(services);
             SetupOther(services);
-            ConfigureMqttServices(services);
+            //ConfigureMqttServices(services);
         }
 
-        private void ConfigureMqttServices(IServiceCollection services)
-        {
-            //this adds a hosted mqtt server to the services
-            services.AddHostedMqttServer(
-                        builder =>
-                        {
-                            builder.WithoutDefaultEndpoint();
-                            builder.WithConnectionValidator(
-                                c =>
-                                {
-                                    if (c.ClientId.Length < 4)
-                                    {
-                                        c.ReasonCode = MqttConnectReasonCode.ClientIdentifierNotValid;
-                                        return;
-                                    }
+        //private void ConfigureMqttServices(IServiceCollection services)
+        //{
+        //    //this adds a hosted mqtt server to the services
+        //    services.AddHostedMqttServer(
+        //                builder =>
+        //                {
+        //                    builder.WithoutDefaultEndpoint();
+        //                    builder.WithConnectionValidator(
+        //                        c =>
+        //                        {
+        //                            if (c.ClientId.Length < 4)
+        //                            {
+        //                                c.ReasonCode = MqttConnectReasonCode.ClientIdentifierNotValid;
+        //                                return;
+        //                            }
 
-                                    c.ReasonCode = MqttConnectReasonCode.Success;
-                                });
-                        })
-                    .AddMqttConnectionHandler()
-                    .AddConnections();
+        //                            c.ReasonCode = MqttConnectReasonCode.Success;
+        //                        });
+        //                })
+        //            .AddMqttConnectionHandler()
+        //            .AddConnections();
             
-            services.AddMqttTcpServerAdapter();
-        }
+        //    services.AddMqttTcpServerAdapter();
+        //}
 
         private static void SetupOther(IServiceCollection builder)
         {
@@ -184,9 +182,9 @@ namespace Wikiled.Sentiment.Service
             builder.AddSingleton<IDocumentStorage, SimpleDocumentStorage>();
             builder.AddScoped<IDocumentConverter, DocumentConverter>();
 
-            builder.AddSingleton<ITopicProcessing, SentimentAnalysisTopic>();
-            builder.AddSingleton<ITopicProcessing, DocumentSaveTopic>();
-            builder.AddSingleton<ITopicProcessing, SentimentTrainingTopic>();
+            builder.AddSingleton<ITopicProcessing, SentimentAnalysis>();
+            builder.AddSingleton<ITopicProcessing, DocumentSave>();
+            builder.AddSingleton<ITopicProcessing, SentimentTraining>();
 
             builder.AddSingleton<SentimentService>();
         }

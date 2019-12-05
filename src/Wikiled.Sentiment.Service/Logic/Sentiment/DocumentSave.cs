@@ -9,15 +9,15 @@ using Wikiled.Sentiment.Service.Logic.Storage;
 
 namespace Wikiled.Sentiment.Service.Services.Topics
 {
-    public class DocumentSaveTopic : ITopicProcessing
+    public class DocumentSave : ITopicProcessing
     {
         private readonly IJsonSerializer serializer;
 
-        private readonly ILogger<DocumentSaveTopic> logger;
+        private readonly ILogger<DocumentSave> logger;
 
         private readonly IDocumentStorage storage;
 
-        public DocumentSaveTopic(ILogger<DocumentSaveTopic> logger, IJsonSerializer serializer, IDocumentStorage storage)
+        public DocumentSave(ILogger<DocumentSave> logger, IJsonSerializer serializer, IDocumentStorage storage)
         {
             this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
             this.serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
