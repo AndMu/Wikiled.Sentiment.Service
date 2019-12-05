@@ -1,6 +1,7 @@
 import time
 from ..service import logger
 
+
 class Callbacks:
 
     def __init__(self):

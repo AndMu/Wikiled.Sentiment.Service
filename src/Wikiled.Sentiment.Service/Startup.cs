@@ -9,6 +9,7 @@ using MQTTnet.Protocol;
 using System;
 using System.Reflection;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.WebSockets;
 using Wikiled.Common.Logging;
 using Wikiled.Common.Utilities.Modules;
 using Wikiled.Common.Utilities.Resources;
@@ -74,13 +75,16 @@ namespace Wikiled.Sentiment.Service
                 endpoints.MapControllerRoute("default", "{controller=Home}/{action=Index}/{id?}");
             });
 
-            app.UseEndpoints(c => c.MapConnectionHandler<MqttConnectionHandler>("/mqtt",
-                                                                                options =>
-                                                                                {
-                                                                                    options.WebSockets.SubProtocolSelector = MQTTnet.AspNetCore.ApplicationBuilderExtensions.SelectSubProtocol;
-                                                                                }));
 
-            app.UseMqttServer(server => app.ApplicationServices.GetRequiredService<SentimentService>().ConfigureMqttServer(server));
+            app.UseWebSockets(new WebSocketOptions { ReceiveBufferSize = 1024 * 1024 * 2 });
+
+            app.Map("/stream", ws =>
+                {
+                    ws.UseMiddleware<ResponseEnricherMiddleware>();
+                    ws.UseWebSockets();
+                    ws.UseMiddleware<WebSocketMiddleware>();
+                }
+            );
 
             // pre-warm
             provider.GetService<LexiconLoader>();
