@@ -14,16 +14,16 @@ using Wikiled.Sentiment.Analysis.Containers;
 using Wikiled.Sentiment.Api.Request;
 using Wikiled.Sentiment.Api.Service.Flow;
 using Wikiled.Sentiment.Service.Logic;
-using Wikiled.Sentiment.Service.Logic.Notifications;
 using Wikiled.Sentiment.Service.Logic.Storage;
 using Wikiled.Sentiment.Text.Parser;
 using Wikiled.Sentiment.Text.Sentiment;
+using Wikiled.Text.Analysis.Structure;
 using Wikiled.WebSockets.Definitions.Messages;
-using Wikiled.WebSockets.Server.Context;
+using Wikiled.WebSockets.Server.Protocol.ConnectionManagement;
 
-namespace Wikiled.Sentiment.Service.Services.Topics
+namespace Wikiled.Sentiment.Service.Services.Topic
 {
-    public class SentimentAnalysis
+    public class SentimentAnalysis : ITopicProcessing
     {
         private readonly IJsonSerializer serializer;
 
@@ -35,8 +35,6 @@ namespace Wikiled.Sentiment.Service.Services.Topics
 
         private readonly IServiceProvider provider;
 
-        private readonly INotificationsHandler notifications;
-
         private readonly IDocumentStorage storage;
 
         public SentimentAnalysis(
@@ -45,28 +43,26 @@ namespace Wikiled.Sentiment.Service.Services.Topics
             ILexiconLoader lexiconLoader,
             IScheduler scheduler,
             IServiceProvider provider,
-            INotificationsHandler notifications, 
             IDocumentStorage storage)
         {
             this.serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
             this.lexiconLoader = lexiconLoader ?? throw new ArgumentNullException(nameof(lexiconLoader));
             this.scheduler = scheduler ?? throw new ArgumentNullException(nameof(scheduler));
             this.provider = provider ?? throw new ArgumentNullException(nameof(provider));
-            this.notifications = notifications ?? throw new ArgumentNullException(nameof(notifications));
             this.storage = storage ?? throw new ArgumentNullException(nameof(storage));
             this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        public string Topic => TopicConstants.SentimentAnalysis;
+        public string Topic => ServiceConstants.SentimentAnalysis;
 
-        public async Task Process(SubscribeMessage message, CancellationToken token)
+        public async Task Process(IConnectionContext target, SubscribeMessage message, CancellationToken token)
         {
             if (message == null)
             {
                 throw new ArgumentNullException(nameof(message));
             }
 
-            var request = serializer.Deserialize<WorkRequest>(message.ApplicationMessage.Payload);
+            var request = serializer.Deserialize<WorkRequest>(message.Payload);
             if (request?.Documents == null)
             {
                 return;
@@ -98,7 +94,7 @@ namespace Wikiled.Sentiment.Service.Services.Topics
                 if (!string.IsNullOrEmpty(request.Model))
                 {
                     logger.LogInformation("Using model path: {0}", request.Model);
-                    modelLocation = storage.GetLocation(message.ClientId, request.Model, TopicConstants.Model);
+                    modelLocation = storage.GetLocation(target.Connection.User, request.Model, ServiceConstants.Model);
                     if (!Directory.Exists(modelLocation))
                     {
                         throw new ApplicationException($"Can't find model {request.Model}");
@@ -128,7 +124,8 @@ namespace Wikiled.Sentiment.Service.Services.Topics
                         .Buffer(TimeSpan.FromSeconds(5), 10, scheduler)
                         .Select(async item =>
                         {
-                            await notifications.PublishResults(message.ClientId, item).ConfigureAwait(false);
+                            var result = new ResultMessage<Document> { Data = item.Select(x => x.Processed).ToArray() };
+                            await target.Write(result, token).ConfigureAwait(false);
                             return Unit.Default;
                         })
                         .Merge();

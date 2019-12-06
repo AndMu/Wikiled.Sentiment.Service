@@ -1,13 +1,15 @@
 ﻿using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Wikiled.Sentiment.Analysis.Pipeline;
+using Wikiled.WebSockets.Server.Protocol.ConnectionManagement;
 
 namespace Wikiled.Sentiment.Service.Logic.Notifications
 {
     public interface INotificationsHandler
     {
-        Task PublishResults(string userId, IList<ProcessingContext> item);
+        Task PublishResults(IConnectionContext connection, IList<ProcessingContext> item, CancellationToken token);
 
-        Task SendUserMessage(string userId, string topic, string message);
+        Task SendUserMessage(IConnectionContext connection, string topic, string message);
     }
 }

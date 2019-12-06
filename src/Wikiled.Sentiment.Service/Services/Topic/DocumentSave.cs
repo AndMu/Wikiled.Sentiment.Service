@@ -1,13 +1,15 @@
 ﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using MQTTnet;
 using Wikiled.Common.Utilities.Serialization;
 using Wikiled.Sentiment.Api.Request;
 using Wikiled.Sentiment.Api.Service.Flow;
 using Wikiled.Sentiment.Service.Logic.Storage;
+using Wikiled.WebSockets.Definitions.Messages;
+using Wikiled.WebSockets.Server.Protocol.ConnectionManagement;
 
-namespace Wikiled.Sentiment.Service.Services.Topics
+namespace Wikiled.Sentiment.Service.Services.Topic
 {
     public class DocumentSave : ITopicProcessing
     {
@@ -24,16 +26,16 @@ namespace Wikiled.Sentiment.Service.Services.Topics
             this.storage = storage ?? throw new ArgumentNullException(nameof(storage));
         }
 
-        public string Topic => TopicConstants.SentimentSave;
+        public string Topic => ServiceConstants.DocumentSave;
 
-        public async Task Process(MqttApplicationMessageReceivedEventArgs message)
+        public async Task Process(IConnectionContext target, SubscribeMessage message, CancellationToken token)
         {
             if (message == null)
             {
                 throw new ArgumentNullException(nameof(message));
             }
 
-            var request = serializer.Deserialize<SaveRequest>(message.ApplicationMessage.Payload);
+            var request = serializer.Deserialize<SaveRequest>(message.Payload);
             if (request?.Documents == null)
             {
                 return;

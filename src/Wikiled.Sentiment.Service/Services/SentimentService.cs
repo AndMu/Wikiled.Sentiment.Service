@@ -98,7 +98,7 @@ namespace Wikiled.Sentiment.Service.Services
         //        {
         //            eventArgs.ProcessingFailed = true;
         //            await notifications
-        //                .SendUserMessage(eventArgs.ClientId, TopicConstants.Error, "Failed to allocate resources for training")
+        //                .SendUserMessage(eventArgs.ClientId, ServiceConstants.Error, "Failed to allocate resources for training")
         //                .ConfigureAwait(false);
         //            return;
         //        }
@@ -108,7 +108,7 @@ namespace Wikiled.Sentiment.Service.Services
         //            var tasks = topicProcessings[eventArgs.ApplicationMessage.Topic]
         //                .Select(item => item.Process(eventArgs));
         //            await Task.WhenAll(tasks).ConfigureAwait(false);
-        //            await notifications.SendUserMessage(eventArgs.ClientId, TopicConstants.SentimentDone, "Done")
+        //            await notifications.SendUserMessage(eventArgs.ClientId, ServiceConstants.SentimentDone, "Done")
         //                .ConfigureAwait(false);
         //        }
         //        else
@@ -119,20 +119,21 @@ namespace Wikiled.Sentiment.Service.Services
         //    catch (Exception e)
         //    {
         //        eventArgs.ProcessingFailed = true;
-        //        await notifications.SendUserMessage(eventArgs.ClientId, TopicConstants.Error, e.Message).ConfigureAwait(false);
+        //        await notifications.SendUserMessage(eventArgs.ClientId, ServiceConstants.Error, e.Message).ConfigureAwait(false);
         //        logger.LogError(e, "Error");
         //    }
         //    finally
         //    {
         //        resourcesHandler.Release(eventArgs.ClientId);
         //        await notifications
-        //            .SendUserMessage(eventArgs.ClientId, TopicConstants.Message, $"{eventArgs.ApplicationMessage.Topic} Done")
+        //            .SendUserMessage(eventArgs.ClientId, ServiceConstants.Message, $"{eventArgs.ApplicationMessage.Topic} Done")
         //            .ConfigureAwait(false);
         //    }
         //}
 
         public Task<IContextSubscription> Subscribe(IConnectionContext target, SubscribeMessage message, CancellationToken token)
         {
+            target.Connection.User
             throw new NotImplementedException();
         }
     }

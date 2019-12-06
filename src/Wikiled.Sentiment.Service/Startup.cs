@@ -17,7 +17,7 @@ using Wikiled.Sentiment.Service.Logic.Allocation;
 using Wikiled.Sentiment.Service.Logic.Notifications;
 using Wikiled.Sentiment.Service.Logic.Storage;
 using Wikiled.Sentiment.Service.Services;
-using Wikiled.Sentiment.Service.Services.Topics;
+using Wikiled.Sentiment.Service.Services.Topic;
 using Wikiled.Sentiment.Text.MachineLearning;
 using Wikiled.Sentiment.Text.Parser;
 using Wikiled.Sentiment.Text.Resources;

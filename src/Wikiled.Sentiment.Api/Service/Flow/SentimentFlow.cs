@@ -51,7 +51,7 @@ namespace Wikiled.Sentiment.Api.Service.Flow
             var disposable = new CompositeDisposable();
             var connection = connectionFactory();
 
-            var dataStream = connection.CreateSubscription(TopicConstants.GetResultPath(connectionInfo.ClientId))
+            var dataStream = connection.CreateSubscription(ServiceConstants.GetResultPath(connectionInfo.ClientId))
                                        .Subscription;
 
             // if main data stream hasn't received anything within 5 minutes - stop
@@ -103,23 +103,23 @@ namespace Wikiled.Sentiment.Api.Service.Flow
 
             await connection.Connect(connectionInfo, token).ConfigureAwait(false);
 
-            await connection.Publish(TopicConstants.SentimentAnalysis, serializer.SerializeArray(request)).ConfigureAwait(false);
+            await connection.Publish(ServiceConstants.SentimentAnalysis, serializer.SerializeArray(request)).ConfigureAwait(false);
 
             disposable.Add(Disposable.Create(() => timeout.Dispose()));
             disposable.Add(dataStream.Subscribe(ProcessData));
 
             disposable.Add(
-                connection.CreateSubscription(TopicConstants.GetDonePath(connectionInfo.ClientId))
+                connection.CreateSubscription(ServiceConstants.GetDonePath(connectionInfo.ClientId))
                           .Subscription
                           .Subscribe(ProcessDone));
 
             disposable.Add(
-                connection.CreateSubscription(TopicConstants.GetErrorPath(connectionInfo.ClientId))
+                connection.CreateSubscription(ServiceConstants.GetErrorPath(connectionInfo.ClientId))
                           .Subscription
                           .Subscribe(ProcessError));
 
             disposable.Add(
-                connection.CreateSubscription(TopicConstants.GetMessagePath(connectionInfo.ClientId))
+                connection.CreateSubscription(ServiceConstants.GetMessagePath(connectionInfo.ClientId))
                           .Subscription
                           .Subscribe(ProcessMessage));
 

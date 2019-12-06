@@ -1,16 +1,18 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.IO;
-using MQTTnet;
-using MQTTnet.Protocol;
-using MQTTnet.Server;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Primitives;
 using Wikiled.Common.Utilities.Serialization;
 using Wikiled.Sentiment.Analysis.Pipeline;
 using Wikiled.Sentiment.Api.Service.Flow;
+using Wikiled.Text.Analysis.Structure;
+using Wikiled.WebSockets.Definitions.Messages;
+using Wikiled.WebSockets.Server.Protocol.ConnectionManagement;
 
 namespace Wikiled.Sentiment.Service.Logic.Notifications
 {
@@ -18,36 +20,24 @@ namespace Wikiled.Sentiment.Service.Logic.Notifications
     {
         private readonly ILogger<NotificationsHandler> logger;
 
-        private readonly IMqttServer server;
-
         private readonly IJsonSerializer serializer;
 
         private readonly RecyclableMemoryStreamManager memoryStreamManager;
 
-        public NotificationsHandler(ILogger<NotificationsHandler> logger, IMqttServer server, IJsonSerializer serializer, RecyclableMemoryStreamManager memoryStreamManager)
+        public NotificationsHandler(ILogger<NotificationsHandler> logger, IJsonSerializer serializer, RecyclableMemoryStreamManager memoryStreamManager)
         {
             this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            this.server = server ?? throw new ArgumentNullException(nameof(server));
             this.serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
             this.memoryStreamManager = memoryStreamManager ?? throw new ArgumentNullException(nameof(memoryStreamManager));
         }
 
-        public async Task PublishResults(string userId, IList<ProcessingContext> item)
+        public async Task PublishResults(IConnectionContext connection, IList<ProcessingContext> item, CancellationToken token)
         {
-            if (userId == null)
-            {
-                throw new ArgumentNullException(nameof(userId));
-            }
+            if (connection == null) throw new ArgumentNullException(nameof(connection));
+            if (item == null) throw new ArgumentNullException(nameof(item));
 
-            if (item == null)
-            {
-                throw new ArgumentNullException(nameof(item));
-            }
-
-            await using var memoryStream = memoryStreamManager.GetStream("Json");
-            var stream = serializer.Serialize(item.Select(x => x.Processed).ToArray());
-            await stream.CopyToAsync(memoryStream).ConfigureAwait(false);
-            await Send(TopicConstants.GetResultPath(userId), memoryStream.ToArray()).ConfigureAwait(false);
+            var result = new ResultMessage<Document> { Data = item.Select(x => x.Processed).ToArray() };
+            await connection.Write(result, token);
         }
 
         public Task SendUserMessage(string userId, string type, string message)
