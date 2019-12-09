@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using System;
 using System.IO;
 using System.Linq;
 using System.Reactive;
@@ -6,12 +8,9 @@ using System.Reactive.Concurrency;
 using System.Reactive.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Wikiled.Common.Logging;
-using Wikiled.Common.Utilities.Serialization;
 using Wikiled.Sentiment.Analysis.Containers;
-using Wikiled.Sentiment.Api.Request;
+using Wikiled.Sentiment.Api.Request.Messages;
 using Wikiled.Sentiment.Api.Service.Flow;
 using Wikiled.Sentiment.Service.Logic;
 using Wikiled.Sentiment.Service.Logic.Storage;
@@ -19,15 +18,14 @@ using Wikiled.Sentiment.Text.Parser;
 using Wikiled.Sentiment.Text.Sentiment;
 using Wikiled.Text.Analysis.Structure;
 using Wikiled.WebSockets.Definitions.Messages;
+using Wikiled.WebSockets.Server.Processing;
 using Wikiled.WebSockets.Server.Protocol.ConnectionManagement;
 
-namespace Wikiled.Sentiment.Service.Services.Topic
+namespace Wikiled.Sentiment.Service.Services.Controllers
 {
-    public class SentimentAnalysis : ITopicProcessing
+    public class SentimentAnalysisController : IMessageController<SentimentMessage>
     {
-        private readonly IJsonSerializer serializer;
-
-        private readonly ILogger<SentimentAnalysis> logger;
+        private readonly ILogger<SentimentAnalysisController> logger;
 
         private readonly ILexiconLoader lexiconLoader;
 
@@ -37,15 +35,13 @@ namespace Wikiled.Sentiment.Service.Services.Topic
 
         private readonly IDocumentStorage storage;
 
-        public SentimentAnalysis(
-            ILogger<SentimentAnalysis> logger,
-            IJsonSerializer serializer,
+        public SentimentAnalysisController(
+            ILogger<SentimentAnalysisController> logger,
             ILexiconLoader lexiconLoader,
             IScheduler scheduler,
             IServiceProvider provider,
             IDocumentStorage storage)
         {
-            this.serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
             this.lexiconLoader = lexiconLoader ?? throw new ArgumentNullException(nameof(lexiconLoader));
             this.scheduler = scheduler ?? throw new ArgumentNullException(nameof(scheduler));
             this.provider = provider ?? throw new ArgumentNullException(nameof(provider));
@@ -53,16 +49,14 @@ namespace Wikiled.Sentiment.Service.Services.Topic
             this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        public string Topic => ServiceConstants.SentimentAnalysis;
-
-        public async Task Process(IConnectionContext target, SubscribeMessage message, CancellationToken token)
+        public async Task Process(IConnectionContext target, SentimentMessage message, CancellationToken token)
         {
             if (message == null)
             {
                 throw new ArgumentNullException(nameof(message));
             }
 
-            var request = serializer.Deserialize<WorkRequest>(message.Payload);
+            var request = message.Request;
             if (request?.Documents == null)
             {
                 return;

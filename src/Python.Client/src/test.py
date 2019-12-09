@@ -1,3 +1,4 @@
+import asyncio
 import os
 import socket
 from os import path
@@ -21,10 +22,10 @@ ch.setFormatter(formatter)
 logger.addHandler(ch)
 
 user_name = socket.gethostname()
-connection = SentimentConnection(host='192.168.0.70', port=7044, client_id=user_name)
+connection = SentimentConnection(host='localhost', port=5000, client_id=user_name)
 
 
-def sentiment_analysis():
+async def sentiment_analysis():
     documents = ['I like this bool :)', 'short it baby']
     dictionary = {}
     dictionary['like'] = -1
@@ -33,7 +34,7 @@ def sentiment_analysis():
     # with custom lexicon and Twitter type cleaning
     # analysis = SentimentAnalysis(connection, 'market', dictionary, clean=True, model='Test')
     analysis = SentimentAnalysis(connection, 'market', dictionary, clean=True)
-    for result in analysis.detect_sentiment_text(documents):
+    async for result in analysis.detect_sentiment_text(documents):
         print(result)
 
 
@@ -69,5 +70,6 @@ def train():
 if __name__ == "__main__":
     #save_documents()
     #train()
-    sentiment_analysis()
+    print('Test')
+    asyncio.run(sentiment_analysis())
 

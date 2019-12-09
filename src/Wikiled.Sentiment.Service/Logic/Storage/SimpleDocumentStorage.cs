@@ -18,7 +18,7 @@ namespace Wikiled.Sentiment.Service.Logic.Storage
 
         private readonly ILogger<SimpleDocumentStorage> logger;
 
-        private IHostEnvironment env;
+        private readonly IHostEnvironment env;
 
         public SimpleDocumentStorage(ILogger<SimpleDocumentStorage> logger, IJsonSerializer serializer, IHostEnvironment env)
         {

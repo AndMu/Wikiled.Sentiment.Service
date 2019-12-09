@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
 using Wikiled.Sentiment.Api.Request;
+using Wikiled.Sentiment.Api.Request.Messages;
 using Wikiled.Sentiment.Service.Logic.Storage;
 using Wikiled.Server.Core.ActionFilters;
 using Wikiled.Server.Core.Controllers;

@@ -1,54 +1,47 @@
-﻿using System;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using System;
 using System.Reactive.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Wikiled.Common.Utilities.Serialization;
 using Wikiled.Sentiment.Analysis.Containers;
-using Wikiled.Sentiment.Api.Request;
+using Wikiled.Sentiment.Api.Request.Messages;
 using Wikiled.Sentiment.Api.Service.Flow;
 using Wikiled.Sentiment.Service.Logic;
 using Wikiled.Sentiment.Service.Logic.Storage;
 using Wikiled.Sentiment.Text.Parser;
-using Wikiled.WebSockets.Definitions.Messages;
+using Wikiled.WebSockets.Server.Processing;
 using Wikiled.WebSockets.Server.Protocol.ConnectionManagement;
 
-namespace Wikiled.Sentiment.Service.Services.Topic
+namespace Wikiled.Sentiment.Service.Services.Controllers
 {
-    public class SentimentTraining : ITopicProcessing
+    public class SentimentTrainingController : IMessageController<TrainMessage>
     {
         private readonly IDocumentStorage storage;
 
-        private readonly IJsonSerializer serializer;
-
-        private readonly ILogger<SentimentTraining> logger;
+        private readonly ILogger<SentimentTrainingController> logger;
 
         private readonly IServiceProvider provider;
 
         private readonly ILexiconLoader lexiconLoader;
 
-        public SentimentTraining(
-            ILogger<SentimentTraining> logger,
-            IJsonSerializer serializer,
+        public SentimentTrainingController(
+            ILogger<SentimentTrainingController> logger,
             IDocumentStorage storage,
             ILexiconLoader lexiconLoader,
             IServiceProvider provider)
         {
             this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            this.serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
             this.storage = storage ?? throw new ArgumentNullException(nameof(storage));
             this.lexiconLoader = lexiconLoader ?? throw new ArgumentNullException(nameof(lexiconLoader));
             this.provider = provider ?? throw new ArgumentNullException(nameof(provider));
         }
 
-        public string Topic => ServiceConstants.SentimentTraining;
-        public async Task Process(IConnectionContext target, SubscribeMessage message, CancellationToken token)
+        public async Task Process(IConnectionContext target, TrainMessage request, CancellationToken token)
         {
             if (target == null) throw new ArgumentNullException(nameof(target));
-            if (message == null) throw new ArgumentNullException(nameof(message));
+            if (request == null) throw new ArgumentNullException(nameof(request));
 
-            var request = serializer.Deserialize<TrainRequest>(message.Payload);
             ISentimentDataHolder loader = default;
 
             if (!string.IsNullOrEmpty(request.Domain))

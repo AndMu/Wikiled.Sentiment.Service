@@ -1,11 +1,9 @@
 import json
 import logging
-import time
+import websockets
 import uuid
 
-from paho.mqtt.client import Client, MQTTv311
-
-from pypsenti.service.mqtt import Callbacks
+from pypsenti.service.request import ConnectMessage, SentimentMessage, SingleDocument
 from ..helpers.utilities import batch
 from requests import Session
 from ..service import logger
@@ -64,15 +62,15 @@ class SentimentConnection(object):
         self.client_id = client_id
         self.host = host
         self.host = f'{host}:{port}'
+        self.stream_url = f'ws://{self.host}/stream'
         self.batch_size = 200
-        self.broker_url = host
-        self.broker_port = port
-        # 100 ms
-        self.step = 0.01
-        # 15 minutes
-        self.train_timeout = 15 * 60 * (1 / self.step)
-        # 30 seconds
-        self.analysis_timeout = 30 * (1 / self.step)
+
+        # # 100 ms
+        # self.step = 0.01
+        # # 15 minutes
+        # self.train_timeout = 15 * 60 * (1 / self.step)
+        # # 30 seconds
+        # self.analysis_timeout = 30 * (1 / self.step)
         self._load()
 
     def _load(self):
@@ -94,79 +92,6 @@ class SentimentConnection(object):
                 result = session.post(url, data=json.dumps(request, default=vars, indent=4))
                 if result.status_code != 200:
                     raise ConnectionError(result.reason)
-
-
-class SentimentStream(object):
-
-    def __init__(self, connection: SentimentConnection):
-        global logger_on
-        self.connection = connection
-        self.messages = {}
-        logger.info(f'Setting up connection to {self.connection.host} for {self.connection.client_id}')
-        self.sentiment_result_topic = f'Sentiment/Result/{self.connection.client_id}'
-        self.message_topic = f'Message/{self.connection.client_id}'
-        self.error_topic = f'Error/{self.connection.client_id}'
-        self.done_topic = f'Sentiment/Done/{self.connection.client_id}'
-        self.done_flag = False
-
-        self.client = Client(client_id=self.connection.client_id, protocol=MQTTv311, transport='websockets')
-        self.callback = Callbacks()
-        self.callback.register(self.client)
-        if logger_on:
-            self.client.enable_logger(logger)
-
-    def __enter__(self):
-        logger.debug('Opening Connection...')
-        self.client.connect(self.connection.broker_url, self.connection.broker_port)
-        self.client.loop_start()
-        self.callback.wait_connected()
-        self._subscribe(self.sentiment_result_topic)
-        self._subscribe(self.done_topic)
-        self._subscribe(self.error_topic)
-        self._subscribe(self.message_topic)
-        logger.debug(f'Ready!!!')
-        return self
-
-    def __exit__(self, type, value, traceback):
-        logger.debug('Closing Connection...')
-        self.client.disconnect()
-        self.client.loop_stop()
-        return isinstance(value, TypeError)
-
-    def publish(self, topic, request):
-        self.client.publish(topic, json.dumps(request, indent=2), qos=1)
-        self.callback.wait_published()
-
-    def wait_message(self):
-        logger.debug('wait_message')
-        while True:
-            message = self._process_message(self.callback.wait_messages())
-            if message != None:
-                return message
-
-    def _subscribe(self, topic, qos_level=1):
-        logger.debug("subscribing to topic" + topic)
-        sub_rc = self.client.subscribe(topic, int(qos_level))
-        logger.debug("subscribe returned " + str(sub_rc))
-        self.callback.wait_subscribed()
-
-    def _process_message(self, message):
-        message = message['message']
-        logger.debug(f'message topic={message.topic} qos={message.qos} retain flag={message.retain}')
-        payload = str(message.payload.decode('utf-8-sig'))
-        if message.topic == self.error_topic:
-            raise ConnectionError(payload)
-        elif message.topic == self.done_topic:
-            logger.info('Received Done!')
-            self.done_flag = True
-        elif message.topic == self.message_topic:
-            logger.info(payload)
-        elif message.topic == self.sentiment_result_topic:
-            return payload
-        else:
-            raise ConnectionError('Unknown message: ' + message.topic)
-
-        return None
 
 
 class SentimentAnalysis(object):
@@ -193,21 +118,39 @@ class SentimentAnalysis(object):
             stream.publish('Sentiment/Train', request)
             stream.wait_message()
 
-    def detect_sentiment_text(self, documents: list):
+    async def detect_sentiment_text(self, documents: list):
         document_pack = [Document(None, item) for item in documents]
-        return self.detect_sentiment(document_pack)
+        async for document in self.detect_sentiment(document_pack):
+            yield document
 
-    def detect_sentiment(self, documents: list):
+    async def detect_sentiment(self, documents: list):
         index = 0
         processed_ids = {}
-        with SentimentStream(self.connection) as stream:
+        async with websockets.connect(self.connection.stream_url) as websocket:
+            connect = ConnectMessage(self.connection.client_id).get_json()
+            await websocket.send(connect)
             for document_batch in batch(documents, self.connection.batch_size):
-                batch_request_documents = []
-                for document in document_batch:
-                    batch_request_documents.append(document.get_dict())
-                    processed_ids[document.id] = index
-                    index += 1
-                yield from self._process_on_server(stream, batch_request_documents, processed_ids)
+                document_request = self._create_batch(document_batch).get_json()
+                async for message in websocket:
+                    message = json.loads(message, encoding='utf-8')
+                    if message['MessageType'] == 'HeartbeatMessage':
+                        logger.debug('Heartbeat received!')
+                    elif message['MessageType'] == 'ConnectedMessage':
+                        await websocket.send(document_request)
+
+                    print(message)
+                    yield message
+                    # await websocket.send(input())
+        # with SentimentStream(self.connection) as stream:
+        #     for document_batch in batch(documents, self.connection.batch_size):
+        #         batch_request_documents = []
+        #         for document in document_batch:
+        #             batch_request_documents.append(document.get_dict())
+        #             processed_ids[document.id] = index
+        #             index += 1
+        #         yield from self._process_on_server(stream, batch_request_documents, processed_ids)
+
+
 
     def _process_on_server(self, stream, batch_request_documents, processed_ids):
         document_request = self._create_batch(batch_request_documents)
@@ -224,14 +167,14 @@ class SentimentAnalysis(object):
                     yield document
 
     def _create_batch(self, documents):
-        data = {}
-        data['CleanText'] = self.clean
+        message = SentimentMessage()
+        message.Request.CleanText = self.clean
         if self.lexicon is not None:
-            data['dictionary'] = self.lexicon
+            message.Request.Dictionary = self.lexicon
         if self.domain is not None:
-            data['domain'] =self.domain
-        data['documents'] = documents
-        data['model'] = self.model
-        return data
+            message.Request.Domain = self.domain
+        message.Request.Documents = [SingleDocument(document) for document in documents]
+        message.Request.Mode = self.model
+        return message
 
 

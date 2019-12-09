@@ -7,23 +7,24 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Reflection;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.WebSockets;
 using Wikiled.Common.Logging;
 using Wikiled.Common.Utilities.Modules;
 using Wikiled.Common.Utilities.Resources;
 using Wikiled.Sentiment.Analysis.Containers;
+using Wikiled.Sentiment.Api.Request.Messages;
 using Wikiled.Sentiment.Service.Logic;
 using Wikiled.Sentiment.Service.Logic.Allocation;
-using Wikiled.Sentiment.Service.Logic.Notifications;
 using Wikiled.Sentiment.Service.Logic.Storage;
-using Wikiled.Sentiment.Service.Services;
-using Wikiled.Sentiment.Service.Services.Topic;
+using Wikiled.Sentiment.Service.Services.Controllers;
 using Wikiled.Sentiment.Text.MachineLearning;
 using Wikiled.Sentiment.Text.Parser;
 using Wikiled.Sentiment.Text.Resources;
 using Wikiled.Server.Core.Errors;
 using Wikiled.Server.Core.Helpers;
 using Wikiled.Server.Core.Middleware;
+using Wikiled.WebSockets.Server.MiddleTier;
+using Wikiled.WebSockets.Server.Processing;
+using Wikiled.WebSockets.Server.Protocol.Configuration;
 
 namespace Wikiled.Sentiment.Service
 {
@@ -60,7 +61,7 @@ namespace Wikiled.Sentiment.Service
             {
                 app.UseDeveloperExceptionPage();
             }
-       
+
             app.UseCors("CorsPolicy");
 
             app.UseRouting();
@@ -80,7 +81,7 @@ namespace Wikiled.Sentiment.Service
                 {
                     //ws.UseMiddleware<ResponseEnricherMiddleware>();
                     ws.UseWebSockets();
-                    ws.UseMiddleware<WebSocketMiddleware>();
+                    ws.UseMiddleware<WebSocketMiddleware2>();
                 }
             );
 
@@ -109,33 +110,16 @@ namespace Wikiled.Sentiment.Service
             // Create the container builder.
             SetupTestClient(services);
             SetupOther(services);
-            //ConfigureMqttServices(services);
+            SetupControllers(services);
         }
 
-        //private void ConfigureMqttServices(IServiceCollection services)
-        //{
-        //    //this adds a hosted mqtt server to the services
-        //    services.AddHostedMqttServer(
-        //                builder =>
-        //                {
-        //                    builder.WithoutDefaultEndpoint();
-        //                    builder.WithConnectionValidator(
-        //                        c =>
-        //                        {
-        //                            if (c.ClientId.Length < 4)
-        //                            {
-        //                                c.ReasonCode = MqttConnectReasonCode.ClientIdentifierNotValid;
-        //                                return;
-        //                            }
-
-        //                            c.ReasonCode = MqttConnectReasonCode.Success;
-        //                        });
-        //                })
-        //            .AddMqttConnectionHandler()
-        //            .AddConnections();
-            
-        //    services.AddMqttTcpServerAdapter();
-        //}
+        private void SetupControllers(IServiceCollection services)
+        {
+            services.RegisterModule<SocketModule>();
+            services.AddSingleton<IController, SentimentAnalysisController>();
+            services.AddSingleton<IController, SentimentTrainingController>();
+            services.RegisterConfiguration<ServiceSettings>(Configuration.GetSection("ServiceSettings"));
+        }
 
         private static void SetupOther(IServiceCollection builder)
         {
@@ -169,24 +153,16 @@ namespace Wikiled.Sentiment.Service
         {
             ParallelHelper.Options = new ParallelOptions();
             ParallelHelper.Options.MaxDegreeOfParallelism = Environment.ProcessorCount / 2;
-            ParallelHelper.Options.MaxDegreeOfParallelism = ParallelHelper.Options.MaxDegreeOfParallelism > 6 
-                ? 6 
+            ParallelHelper.Options.MaxDegreeOfParallelism = ParallelHelper.Options.MaxDegreeOfParallelism > 6
+                ? 6
                 : ParallelHelper.Options.MaxDegreeOfParallelism;
 
             builder.RegisterModule(new SentimentMainModule());
-            builder.RegisterModule(new SentimentServiceModule(configuration) {Lexicons = path});
+            builder.RegisterModule(new SentimentServiceModule(configuration) { Lexicons = path });
 
-            builder.AddSingleton<INotificationsHandler, NotificationsHandler>();
             builder.AddSingleton<IResourcesHandler, ResourcesHandler>();
-
             builder.AddSingleton<IDocumentStorage, SimpleDocumentStorage>();
             builder.AddScoped<IDocumentConverter, DocumentConverter>();
-
-            builder.AddSingleton<ITopicProcessing, SentimentAnalysis>();
-            builder.AddSingleton<ITopicProcessing, DocumentSave>();
-            builder.AddSingleton<ITopicProcessing, SentimentTraining>();
-
-            builder.AddSingleton<SentimentService>();
         }
     }
 }
