@@ -1,5 +1,5 @@
-import json
 import socket
+import uuid
 from abc import ABC
 
 import jsonpickle
@@ -11,7 +11,7 @@ class Message(ABC):
         self.MessageType = self.__class__.__name__
 
     def get_json(self):
-        return jsonpickle.encode(self)
+        return jsonpickle.encode(self, unpicklable=False, make_refs=False)
 
 
 class ConnectMessage(Message):
@@ -39,10 +39,12 @@ class WorkRequest(object):
         self.Model = None
 
 
-class SingleDocument(object):
-    def __init__(self, text):
+class Document(object):
+    def __init__(self, document_id: str, text: str):
+        if document_id is None:
+            document_id = uuid.uuid4()
+        self.Id = str(document_id)
         self.Date = None
         self.Author = None
-        self.Id = None
         self.Text = text
-        self.IsPostivie = None
+        self.IsPositive = None

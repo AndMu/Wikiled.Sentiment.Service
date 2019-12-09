@@ -22,6 +22,7 @@ using Wikiled.Sentiment.Text.Resources;
 using Wikiled.Server.Core.Errors;
 using Wikiled.Server.Core.Helpers;
 using Wikiled.Server.Core.Middleware;
+using Wikiled.WebSockets.Definitions.Messages;
 using Wikiled.WebSockets.Server.MiddleTier;
 using Wikiled.WebSockets.Server.Processing;
 using Wikiled.WebSockets.Server.Protocol.Configuration;
@@ -119,6 +120,8 @@ namespace Wikiled.Sentiment.Service
             services.AddSingleton<IController, SentimentAnalysisController>();
             services.AddSingleton<IController, SentimentTrainingController>();
             services.RegisterConfiguration<ServiceSettings>(Configuration.GetSection("ServiceSettings"));
+            services.AddSingleton<Message, SentimentMessage>();
+            services.AddSingleton<Message, TrainMessage>();
         }
 
         private static void SetupOther(IServiceCollection builder)

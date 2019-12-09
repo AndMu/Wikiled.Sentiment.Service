@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using Wikiled.WebSockets.Definitions.Messages;
+﻿using Wikiled.WebSockets.Definitions.Messages;
 
 namespace Wikiled.Sentiment.Api.Request.Messages
 {

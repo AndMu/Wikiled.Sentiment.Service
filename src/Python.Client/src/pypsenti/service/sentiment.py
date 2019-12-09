@@ -3,7 +3,7 @@ import logging
 import websockets
 import uuid
 
-from pypsenti.service.request import ConnectMessage, SentimentMessage, SingleDocument
+from ..service.request import ConnectMessage, SentimentMessage, Document
 from ..helpers.utilities import batch
 from requests import Session
 from ..service import logger
@@ -32,27 +32,6 @@ def add_logger():
     logger.addHandler(ch)
 
 
-class Document(object):
-
-    def __init__(self, document_id: str, text: str):
-        if document_id is None:
-            document_id = uuid.uuid4()
-        self.id = str(document_id)
-        self.text = text
-        self.author = None
-        self.isPositive = None
-        self.date = None
-
-    def get_dict(self):
-        return {
-            'Id': self.id,
-            'Text': self.text,
-            'Author': self.author,
-            'isPositive': self.isPositive,
-            'date': self.date,
-        }
-
-
 class SentimentConnection(object):
 
     def __init__(self, host: str, port: int, client_id: str):
@@ -63,7 +42,7 @@ class SentimentConnection(object):
         self.host = host
         self.host = f'{host}:{port}'
         self.stream_url = f'ws://{self.host}/stream'
-        self.batch_size = 200
+        self.batch_size = 100
 
         # # 100 ms
         # self.step = 0.01
@@ -129,42 +108,32 @@ class SentimentAnalysis(object):
         async with websockets.connect(self.connection.stream_url) as websocket:
             connect = ConnectMessage(self.connection.client_id).get_json()
             await websocket.send(connect)
+            connected = False
             for document_batch in batch(documents, self.connection.batch_size):
+                logger.debug('Processing batch...')
+                for document in document_batch:
+                    processed_ids[document.Id] = index
+                    index += 1
                 document_request = self._create_batch(document_batch).get_json()
+                if connected:
+                    logger.debug('Sending document batch')
+                    await websocket.send(document_request)
                 async for message in websocket:
                     message = json.loads(message, encoding='utf-8')
                     if message['MessageType'] == 'HeartbeatMessage':
-                        logger.debug('Heartbeat received!')
+                        logger.debug('Heartbeat!')
                     elif message['MessageType'] == 'ConnectedMessage':
+                        logger.debug('Connected!')
+                        connected = True
+                        logger.debug('Sending first document batch')
                         await websocket.send(document_request)
-
-                    print(message)
-                    yield message
-                    # await websocket.send(input())
-        # with SentimentStream(self.connection) as stream:
-        #     for document_batch in batch(documents, self.connection.batch_size):
-        #         batch_request_documents = []
-        #         for document in document_batch:
-        #             batch_request_documents.append(document.get_dict())
-        #             processed_ids[document.id] = index
-        #             index += 1
-        #         yield from self._process_on_server(stream, batch_request_documents, processed_ids)
-
-
-
-    def _process_on_server(self, stream, batch_request_documents, processed_ids):
-        document_request = self._create_batch(batch_request_documents)
-        logger.info('Sending Analysis Command...')
-        stream.publish('Sentiment/Analysis', document_request)
-        logger.debug('Processing...')
-        while len(processed_ids) > 0:
-            message = stream.wait_message()
-            if message is not None:
-                documents = json.loads(message, encoding='utf-8')
-                for document in documents:
-                    document_id = document['Id']
-                    del processed_ids[document_id]
-                    yield document
+                    elif message['MessageType'] == 'DataUpdate':
+                        for document in message['Data']:
+                            document_id = document['Id']
+                            del processed_ids[document_id]
+                            yield document
+                        if len(processed_ids) == 0:
+                            break
 
     def _create_batch(self, documents):
         message = SentimentMessage()
@@ -173,7 +142,7 @@ class SentimentAnalysis(object):
             message.Request.Dictionary = self.lexicon
         if self.domain is not None:
             message.Request.Domain = self.domain
-        message.Request.Documents = [SingleDocument(document) for document in documents]
+        message.Request.Documents = documents
         message.Request.Mode = self.model
         return message
 
