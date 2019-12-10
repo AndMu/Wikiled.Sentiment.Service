@@ -71,5 +71,8 @@ if __name__ == "__main__":
     #save_documents()
     #train()
     print('Test')
-    asyncio.run(sentiment_analysis())
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(sentiment_analysis())
+    loop.close()
+    #asyncio.run(sentiment_analysis())
 

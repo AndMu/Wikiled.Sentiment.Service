@@ -119,6 +119,7 @@ class SentimentAnalysis(object):
                     logger.debug('Sending document batch')
                     await websocket.send(document_request)
                 async for message in websocket:
+                    logger.debug('Message Received')
                     message = json.loads(message, encoding='utf-8')
                     if message['MessageType'] == 'HeartbeatMessage':
                         logger.debug('Heartbeat!')
@@ -128,6 +129,7 @@ class SentimentAnalysis(object):
                         logger.debug('Sending first document batch')
                         await websocket.send(document_request)
                     elif message['MessageType'] == 'DataUpdate':
+                        logger.debug('Data Received')
                         for document in message['Data']:
                             document_id = document['Id']
                             del processed_ids[document_id]

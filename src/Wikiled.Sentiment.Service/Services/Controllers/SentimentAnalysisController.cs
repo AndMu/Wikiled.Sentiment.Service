@@ -72,7 +72,8 @@ namespace Wikiled.Sentiment.Service.Services.Controllers
                 .Subscribe(item => logger.LogInformation(monitor.ToString())))
             {
                 ISentimentDataHolder loader = default;
-                if (request.Dictionary != null)
+                if (request.Dictionary != null &&
+                    request.Dictionary.Count > 0)
                 {
                     logger.LogInformation("Creating custom dictionary with {0} words", request.Dictionary.Count);
                     loader = SentimentDataHolder.Load(request.Dictionary.Select(item =>
