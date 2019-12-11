@@ -55,10 +55,14 @@ def read_documents(path_folder: str, class_type: bool):
 
 def save_documents():
 
-    all_documents = read_documents('E:/DataSets/aclImdb/All/Train/neg', False)
+    print("Loading Negative files")
+    all_documents = read_documents('D:/DataSets/aclImdb/All/Train/neg', False)
+    print("Sending...")
     connection.save_documents('Test', all_documents)
 
-    all_documents = read_documents('E:/DataSets/aclImdb/All/Train/pos', True)
+    print("Loading Positive files")
+    all_documents = read_documents('D:/DataSets/aclImdb/All/Train/pos', True)
+    print("Sending...")
     connection.save_documents('Test', all_documents)
 
 

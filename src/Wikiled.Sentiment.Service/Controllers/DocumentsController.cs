@@ -34,7 +34,6 @@ namespace Wikiled.Sentiment.Service.Controllers
             }
 
             await storage.Save(save).ConfigureAwait(false);
-
             return Ok();
         }
 
