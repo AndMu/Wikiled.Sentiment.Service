@@ -88,18 +88,24 @@ namespace Wikiled.Sentiment.Service.Logic.Storage
 
         private void ReadFiles(string client, string name, bool classType, IObserver<SingleRequestData> observer)
         {
-            try
+            var folder = GetDocumentClassFolder(client, name, classType);
+            if (!Directory.Exists(folder))
             {
-                var files = Directory.GetFiles(GetDocumentClassFolder(client, name, classType), "*.zip");
-                foreach (var file in files)
+                throw new Exception("Documents not found");
+            }
+
+            var files = Directory.GetFiles(GetDocumentClassFolder(client, name, classType), "*.zip");
+            foreach (var file in files)
+            {
+                try
                 {
                     var result = serializer.DeserializeJsonZip<SingleRequestData>(file);
                     observer.OnNext(result);
                 }
-            }
-            catch (Exception e)
-            {
-                logger.LogError(e, "Failed");
+                catch (Exception e)
+                {
+                    logger.LogError(e, "Failed");
+                }
             }
 
             observer.OnCompleted();

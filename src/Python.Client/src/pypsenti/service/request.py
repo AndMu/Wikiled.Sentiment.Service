@@ -48,3 +48,12 @@ class Document(object):
         self.Author = None
         self.Text = text
         self.IsPositive = None
+
+
+class TrainMessage(Message):
+    def __init__(self, name: str):
+        self.Name = name
+        self.CleanText = True
+        self.Domain = None
+        super().__init__()
+

@@ -7,6 +7,9 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Reflection;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Http;
+using Newtonsoft.Json.Linq;
 using Wikiled.Common.Logging;
 using Wikiled.Common.Utilities.Modules;
 using Wikiled.Common.Utilities.Resources;
@@ -80,9 +83,9 @@ namespace Wikiled.Sentiment.Service
 
             app.Map("/stream", ws =>
                 {
-                    //ws.UseMiddleware<ResponseEnricherMiddleware>();
                     ws.UseWebSockets();
                     ws.UseMiddleware<WebSocketMiddleware2>();
+                    app.UseExceptionHandler(builder => builder.Run(JsonExceptionHandler));
                 }
             );
 
@@ -99,7 +102,7 @@ namespace Wikiled.Sentiment.Service
                 {
                     options.AddPolicy(
                         "CorsPolicy",
-                        itemBuider => itemBuider.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+                        builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
                 });
 
             // Add framework services.
@@ -122,6 +125,7 @@ namespace Wikiled.Sentiment.Service
             services.RegisterConfiguration<ServiceSettings>(Configuration.GetSection("ServiceSettings"));
             services.AddSingleton<Message, SentimentMessage>();
             services.AddSingleton<Message, TrainMessage>();
+            services.AddSingleton<Message, CompletedMessage>();
         }
 
         private static void SetupOther(IServiceCollection builder)
@@ -166,6 +170,16 @@ namespace Wikiled.Sentiment.Service
             builder.AddSingleton<IResourcesHandler, ResourcesHandler>();
             builder.AddSingleton<IDocumentStorage, SimpleDocumentStorage>();
             builder.AddScoped<IDocumentConverter, DocumentConverter>();
+        }
+
+        private static Task JsonExceptionHandler(HttpContext context)
+        {
+            var exception = context.Features.Get<IExceptionHandlerFeature>();
+            var result = new JObject(new JProperty("error", exception.Error.Message));
+
+            context.Response.StatusCode = 500;
+            context.Response.ContentType = "application/json";
+            return context.Response.WriteAsync(result.ToString());
         }
     }
 }

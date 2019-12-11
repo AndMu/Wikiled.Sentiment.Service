@@ -25,7 +25,7 @@ user_name = socket.gethostname()
 connection = SentimentConnection(host='localhost', port=5000, client_id=user_name)
 
 
-async def sentiment_analysis():
+def sentiment_analysis():
     documents = ['I like this bool :)', 'short it baby']
     dictionary = {}
     dictionary['like'] = -1
@@ -34,7 +34,7 @@ async def sentiment_analysis():
     # with custom lexicon and Twitter type cleaning
     # analysis = SentimentAnalysis(connection, 'market', dictionary, clean=True, model='Test')
     analysis = SentimentAnalysis(connection, 'market', dictionary, clean=True)
-    async for result in analysis.detect_sentiment_text(documents):
+    for result in analysis.detect_sentiment_text(documents):
         print(result)
 
 
@@ -63,16 +63,13 @@ def save_documents():
 
 
 def train():
-    analysis = SentimentAnalysis(SentimentConnection('TestConnection17'), domain='market', clean=True)
+    analysis = SentimentAnalysis(connection, domain='market', clean=True)
     analysis.train('Test')
 
 
 if __name__ == "__main__":
-    #save_documents()
-    #train()
+    save_documents()
+    train()
     print('Test')
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(sentiment_analysis())
-    loop.close()
-    #asyncio.run(sentiment_analysis())
+    sentiment_analysis()
 

@@ -1,10 +1,10 @@
+import asyncio
 import json
 import logging
 import websockets
-import uuid
 
-from ..service.request import ConnectMessage, SentimentMessage, Document
-from ..helpers.utilities import batch
+from ..service.request import ConnectMessage, SentimentMessage, Document, TrainMessage
+from ..helpers.utilities import batch, wrap_async_iter
 from requests import Session
 from ..service import logger
 
@@ -44,12 +44,6 @@ class SentimentConnection(object):
         self.stream_url = f'ws://{self.host}/stream'
         self.batch_size = 100
 
-        # # 100 ms
-        # self.step = 0.01
-        # # 15 minutes
-        # self.train_timeout = 15 * 60 * (1 / self.step)
-        # # 30 seconds
-        # self.analysis_timeout = 30 * (1 / self.step)
         self._load()
 
     def _load(self):
@@ -86,23 +80,43 @@ class SentimentAnalysis(object):
         self.model = model
 
     def train(self, name):
-        with SentimentStream(self.connection) as stream:
-            request = {
-                'name': name,
-                'domain': self.domain,
-                'CleanText': self.clean
-            }
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(self.train_async(name))
+        loop.close()
 
-            logger.info('Sending Train Command...')
-            stream.publish('Sentiment/Train', request)
-            stream.wait_message()
+    async def train_async(self, name):
+        async with websockets.connect(self.connection.stream_url) as websocket:
+            connect = ConnectMessage(self.connection.client_id).get_json()
+            await websocket.send(connect)
+            logger.info('Training Sentiment...')
 
-    async def detect_sentiment_text(self, documents: list):
+            async for message in websocket:
+                logger.debug('Message Received')
+                message = json.loads(message, encoding='utf-8')
+                if message['MessageType'] == 'HeartbeatMessage':
+                    logger.debug('Heartbeat!')
+                elif message['MessageType'] == 'ConnectedMessage':
+                    logger.debug('Connected!')
+                    logger.debug('Sending train request')
+                    train_message = TrainMessage(name).get_json()
+                    await websocket.send(train_message)
+                elif message['MessageType'] == 'CompletedMessage':
+                    if message['IsError']:
+                        raise ConnectionError(message['Message'])
+                    else:
+                        logger.debug('Training Completed')
+                    break
+
+    def detect_sentiment_text(self, documents: list):
         document_pack = [Document(None, item) for item in documents]
-        async for document in self.detect_sentiment(document_pack):
+        for document in self.detect_sentiment(document_pack):
             yield document
 
-    async def detect_sentiment(self, documents: list):
+    def detect_sentiment(self, documents: list):
+        for document in wrap_async_iter(self.detect_sentiment_async(documents)):
+            yield document
+
+    async def detect_sentiment_async(self, documents: list):
         index = 0
         processed_ids = {}
         async with websockets.connect(self.connection.stream_url) as websocket:

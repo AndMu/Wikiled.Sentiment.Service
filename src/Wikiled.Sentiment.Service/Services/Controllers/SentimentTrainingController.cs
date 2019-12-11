@@ -43,33 +43,47 @@ namespace Wikiled.Sentiment.Service.Services.Controllers
             if (request == null) throw new ArgumentNullException(nameof(request));
 
             ISentimentDataHolder loader = default;
-
-            if (!string.IsNullOrEmpty(request.Domain))
+            var completed = new CompletedMessage();
+            try
             {
-                logger.LogInformation("Using Domain dictionary [{0}]", request.Domain);
-                loader = lexiconLoader.GetLexicon(request.Domain);
-            }
-
-            var modelLocation = storage.GetLocation(target.Connection.User, request.Name, ServiceConstants.Model);
-
-            using (var scope = provider.CreateScope())
-            {
-                var container = scope.ServiceProvider.GetService<ISessionContainer>();
-                var client = container.GetTraining(modelLocation);
-                var converter = scope.ServiceProvider.GetService<IDocumentConverter>();
-                client.Pipeline.ResetMonitor();
-                if (loader != null)
+                if (!string.IsNullOrEmpty(request.Domain))
                 {
-                    client.Lexicon = loader;
+                    logger.LogInformation("Using Domain dictionary [{0}]", request.Domain);
+                    loader = lexiconLoader.GetLexicon(request.Domain);
                 }
 
-                var positive = storage.Load(target.Connection.User, request.Name, true)
-                                       .Take(2000);
-                var negative = storage.Load(target.Connection.User, request.Name, false)
-                                      .Take(2000);
+                var modelLocation = storage.GetLocation(target.Connection.User, request.Name, ServiceConstants.Model);
 
-                var documents = positive.Concat(negative).Select(item => converter.Convert(item, request.CleanText));
-                await client.Train(documents).ConfigureAwait(false);
+                using (var scope = provider.CreateScope())
+                {
+                    var container = scope.ServiceProvider.GetService<ISessionContainer>();
+                    var client = container.GetTraining(modelLocation);
+                    var converter = scope.ServiceProvider.GetService<IDocumentConverter>();
+                    client.Pipeline.ResetMonitor();
+                    if (loader != null)
+                    {
+                        client.Lexicon = loader;
+                    }
+
+                    var positive = storage.Load(target.Connection.User, request.Name, true)
+                        .Take(2000);
+                    var negative = storage.Load(target.Connection.User, request.Name, false)
+                        .Take(2000);
+
+                    var documents = positive.Concat(negative)
+                        .Select(item => converter.Convert(item, request.CleanText));
+                    await client.Train(documents).ConfigureAwait(false);
+                    
+                    completed.Message = "Training Completed";
+                    await target.Write(completed, token).ConfigureAwait(false);
+                }
+            }
+            catch (Exception e)
+            {
+                completed.Message = e.Message;
+                await target.Write(completed, token).ConfigureAwait(false);
+                completed.IsError = true;
+                throw;
             }
         }
     }
