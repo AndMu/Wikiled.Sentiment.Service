@@ -16,7 +16,6 @@ using Wikiled.Common.Utilities.Resources;
 using Wikiled.Sentiment.Analysis.Containers;
 using Wikiled.Sentiment.Api.Request.Messages;
 using Wikiled.Sentiment.Service.Logic;
-using Wikiled.Sentiment.Service.Logic.Allocation;
 using Wikiled.Sentiment.Service.Logic.Storage;
 using Wikiled.Sentiment.Service.Services.Controllers;
 using Wikiled.Sentiment.Text.MachineLearning;
@@ -167,7 +166,6 @@ namespace Wikiled.Sentiment.Service
             builder.RegisterModule(new SentimentMainModule());
             builder.RegisterModule(new SentimentServiceModule(configuration) { Lexicons = path });
 
-            builder.AddSingleton<IResourcesHandler, ResourcesHandler>();
             builder.AddSingleton<IDocumentStorage, SimpleDocumentStorage>();
             builder.AddScoped<IDocumentConverter, DocumentConverter>();
         }
