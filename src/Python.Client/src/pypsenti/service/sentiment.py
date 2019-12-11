@@ -1,6 +1,7 @@
 import asyncio
 import json
-import logging
+import threading
+
 import websockets
 
 from ..service.request import ConnectMessage, SentimentMessage, Document, TrainMessage
@@ -8,28 +9,8 @@ from ..helpers.utilities import batch, wrap_async_iter
 from requests import Session
 from ..service import logger
 
-logger_on = False
-
-
-def add_logger():
-    global logger_on
-    if logger_on:
-        return
-
-    logger_on = True
-    # create logger
-    logger.setLevel(logging.DEBUG)
-
-    # create console handler and set level to debug
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.DEBUG)
-
-    # create formatter
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-    # add formatter to ch
-    ch.setFormatter(formatter)
-    logger.addHandler(ch)
+loop_async = asyncio.get_event_loop()
+threading.Thread(target=loop_async.run_forever, daemon=True).start()
 
 
 class SentimentConnection(object):
@@ -80,9 +61,7 @@ class SentimentAnalysis(object):
         self.model = model
 
     def train(self, name):
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(self.train_async(name))
-        loop.close()
+        await self.train_async(name)
 
     async def train_async(self, name):
         async with websockets.connect(self.connection.stream_url) as websocket:
