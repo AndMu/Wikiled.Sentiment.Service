@@ -1,6 +1,7 @@
 import asyncio
 import json
 import threading
+from time import sleep
 
 import websockets
 
@@ -8,9 +9,6 @@ from ..service.request import ConnectMessage, SentimentMessage, Document, TrainM
 from ..helpers.utilities import batch, wrap_async_iter
 from requests import Session
 from ..service import logger
-
-loop_async = asyncio.get_event_loop()
-threading.Thread(target=loop_async.run_forever, daemon=True).start()
 
 
 class SentimentConnection(object):
@@ -24,7 +22,8 @@ class SentimentConnection(object):
         self.host = f'{host}:{port}'
         self.stream_url = f'ws://{self.host}/stream'
         self.batch_size = 100
-
+        self.loop = asyncio.get_event_loop()
+        threading.Thread(target=self.loop.run_forever, daemon=True).start()
         self._load()
 
     def _load(self):
@@ -61,7 +60,9 @@ class SentimentAnalysis(object):
         self.model = model
 
     def train(self, name):
-        await self.train_async(name)
+        future = asyncio.run_coroutine_threadsafe(self.train_async(name), self.connection.loop)
+        # Wait for the result:
+        result = future.result()
 
     async def train_async(self, name):
         async with websockets.connect(self.connection.stream_url) as websocket:
@@ -85,6 +86,7 @@ class SentimentAnalysis(object):
                     else:
                         logger.debug('Training Completed')
                     break
+        return True
 
     def detect_sentiment_text(self, documents: list):
         document_pack = [Document(None, item) for item in documents]
@@ -92,7 +94,7 @@ class SentimentAnalysis(object):
             yield document
 
     def detect_sentiment(self, documents: list):
-        for document in wrap_async_iter(self.detect_sentiment_async(documents)):
+        for document in wrap_async_iter(self.detect_sentiment_async(documents), self.connection.loop):
             yield document
 
     async def detect_sentiment_async(self, documents: list):
