@@ -72,8 +72,9 @@ def train():
 
 
 if __name__ == "__main__":
-    save_documents()
+    #save_documents()
     train()
     print('Test')
+    sentiment_analysis()
     sentiment_analysis()
 

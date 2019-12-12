@@ -2,13 +2,14 @@ import asyncio, queue
 import logging
 logger_on = False
 
+
 def batch(iterable, n=1):
     l = len(iterable)
     for ndx in range(0, l, n):
         yield iterable[ndx:min(ndx + n, l)]
 
 
-def wrap_async_iter(ait, loop_async):
+def wrap_async_iter(ait, loop):
     # create an asyncio loop that runs in the background to
     # serve our asyncio needs
 
@@ -34,7 +35,7 @@ def wrap_async_iter(ait, loop_async):
         finally:
             q.put(_END)
 
-    async_result = asyncio.run_coroutine_threadsafe(aiter_to_queue(), loop_async)
+    async_result = asyncio.run_coroutine_threadsafe(aiter_to_queue(), loop)
     return yield_queue_items()
 
 
