@@ -1,25 +1,14 @@
-import asyncio
 import os
 import socket
 from os import path
 
-from pypsenti import SentimentAnalysis, SentimentConnection, Document
+from psenti import SentimentAnalysis, SentimentConnection, Document, add_logger
 
 import logging
 # create logger
-logger = logging.getLogger('pypsenti')
-logger.setLevel(logging.DEBUG)
+logger = logging.getLogger('psenti')
 
-# create console handler and set level to debug
-ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
-
-# create formatter
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-# add formatter to ch
-ch.setFormatter(formatter)
-logger.addHandler(ch)
+add_logger(logger)
 
 user_name = socket.gethostname()
 connection = SentimentConnection(host='localhost', port=5000, client_id=user_name)

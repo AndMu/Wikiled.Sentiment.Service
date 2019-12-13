@@ -1,7 +1,6 @@
 import asyncio
 import json
 import threading
-from time import sleep
 
 import websockets
 
@@ -22,9 +21,9 @@ class SentimentConnection(object):
         self.host = f'{host}:{port}'
         self.stream_url = f'ws://{self.host}/stream'
         self.batch_size = 100
+        self._load()
         self.loop = asyncio.get_event_loop()
         threading.Thread(target=self.loop.run_forever, daemon=True).start()
-        self._load()
 
     def _load(self):
         with Session() as session:
@@ -34,6 +33,7 @@ class SentimentConnection(object):
             self.supported_domains = json.loads(session.get(url).content)
 
     def save_documents(self, name: str, documents: Document):
+        logger.info(f'Saving document [{name}]: {len(documents)}...')
         with Session() as session:
             url = f'http://{self.host}/api/documents/save'
             for documents_batch in batch(documents, self.batch_size):
@@ -76,17 +76,15 @@ class SentimentAnalysis(object):
                 if message['MessageType'] == 'HeartbeatMessage':
                     logger.debug('Heartbeat!')
                 elif message['MessageType'] == 'ConnectedMessage':
-                    logger.debug('Connected!')
-                    logger.debug('Sending train request')
+                    logger.info('Connected!')
+                    logger.info('Sending train request')
                     train_message = TrainMessage(name).get_json()
                     await websocket.send(train_message)
                 elif message['MessageType'] == 'CompletedMessage':
                     if message['IsError']:
                         raise ConnectionError(message['Message'])
-                    else:
-                        logger.debug('Training Completed')
                     break
-        return True
+        logger.info('Completed!')
 
     def detect_sentiment_text(self, documents: list):
         document_pack = [Document(None, item) for item in documents]
@@ -98,6 +96,8 @@ class SentimentAnalysis(object):
             yield document
 
     async def detect_sentiment_async(self, documents: list):
+        logger.info(f'Detecting sentiment in {len(documents)} documents; Domain [{self.domain}]; Cleaning '
+                    f'[{self.clean}]; Model: [{self.model}] Lexicon: [{self.lexicon}]')
         index = 0
         processed_ids = {}
         async with websockets.connect(self.connection.stream_url) as websocket:
@@ -111,7 +111,7 @@ class SentimentAnalysis(object):
                     index += 1
                 document_request = self._create_batch(document_batch).get_json()
                 if connected:
-                    logger.debug('Sending document batch')
+                    logger.info(f'Sending document batch: {len(document_batch)}')
                     await websocket.send(document_request)
                 async for message in websocket:
                     logger.debug('Message Received')
@@ -119,9 +119,9 @@ class SentimentAnalysis(object):
                     if message['MessageType'] == 'HeartbeatMessage':
                         logger.debug('Heartbeat!')
                     elif message['MessageType'] == 'ConnectedMessage':
-                        logger.debug('Connected!')
+                        logger.info('Connected!')
                         connected = True
-                        logger.debug('Sending first document batch')
+                        logger.info('Sending first document batch')
                         await websocket.send(document_request)
                     elif message['MessageType'] == 'DataUpdate':
                         logger.debug('Data Received')
@@ -131,6 +131,7 @@ class SentimentAnalysis(object):
                             yield document
                         if len(processed_ids) == 0:
                             break
+        logger.info('Completed!')
 
     def _create_batch(self, documents):
         message = SentimentMessage()
@@ -140,7 +141,7 @@ class SentimentAnalysis(object):
         if self.domain is not None:
             message.Request.Domain = self.domain
         message.Request.Documents = documents
-        message.Request.Mode = self.model
+        message.Request.Model = self.model
         return message
 
 

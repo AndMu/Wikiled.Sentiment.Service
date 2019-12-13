@@ -3,6 +3,7 @@ import uuid
 from abc import ABC
 
 import jsonpickle
+# from .. import version
 
 
 class Message(ABC):
@@ -18,7 +19,7 @@ class ConnectMessage(Message):
 
     def __init__(self, user):
         self.Hostname = socket.gethostname()
-        self.UserAgent = 'pywiSenti'
+        self.UserAgent = f'Python pSenti'
         self.UserName = user
         super().__init__()
 

@@ -39,18 +39,18 @@ def wrap_async_iter(ait, loop):
     return yield_queue_items()
 
 
-def add_logger(logger):
+def add_logger(logger, level=logging.INFO):
     global logger_on
     if logger_on:
         return
 
     logger_on = True
     # create logger
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(level)
 
     # create console handler and set level to debug
     ch = logging.StreamHandler()
-    ch.setLevel(logging.DEBUG)
+    ch.setLevel(level)
 
     # create formatter
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
