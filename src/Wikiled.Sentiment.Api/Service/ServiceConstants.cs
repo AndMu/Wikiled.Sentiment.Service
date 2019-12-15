@@ -1,4 +1,4 @@
-﻿namespace Wikiled.Sentiment.Api.Service.Flow
+﻿namespace Wikiled.Sentiment.Api.Service
 {
     public static class ServiceConstants
     {

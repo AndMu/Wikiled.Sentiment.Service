@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 using Wikiled.Common.Logging;
 using Wikiled.Sentiment.Analysis.Containers;
 using Wikiled.Sentiment.Api.Request.Messages;
-using Wikiled.Sentiment.Api.Service.Flow;
+using Wikiled.Sentiment.Api.Service;
 using Wikiled.Sentiment.Service.Logic;
 using Wikiled.Sentiment.Service.Logic.Storage;
 using Wikiled.Sentiment.Text.Parser;

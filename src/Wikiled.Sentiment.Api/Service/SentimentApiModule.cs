@@ -1,19 +1,17 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Wikiled.Common.Utilities.Modules;
-using Wikiled.Sentiment.Api.Service.Flow;
+using Wikiled.WebSockets.Client.Modules;
 
-namespace Wikiled.Sentiment.Api.Service.Module
+namespace Wikiled.Sentiment.Api.Service
 {
     public class SentimentApiModule : IModule
     {
         public IServiceCollection ConfigureServices(IServiceCollection services)
         {
-            services.AddTransient<ISentimentFlow, SentimentFlow>();
+            services.RegisterModule(new ClientServiceModule { IsSingleton = false });
             services.RegisterModule<CommonModule>();
             services.RegisterModule<LoggingModule>();
-
-       
-            services.AddSingleton<ISentimentAnalysisSetup, SentimentAnalysisSetup>();
+            services.AddTransient<ISentimentAnalysis, SentimentAnalysis>();
             return services;
         }
     }

@@ -15,15 +15,16 @@ namespace Wikiled.Sentiment.Service.Tests.Acceptance
     {
         private ServerWrapper wrapper;
 
-        private ISentimentAnalysisSetup analysisSetup;
+        private ISentimentAnalysis analysis;
 
         [OneTimeSetUp]
         public void SetUp()
         {
             wrapper = ServerWrapper.Create<Startup>(TestContext.CurrentContext.TestDirectory, services => { });
             var services = new ServiceCollection();
+            services.RegisterModule<SentimentApiModule>();
             var provider = services.BuildServiceProvider();
-            analysisSetup = provider.GetService<ISentimentAnalysisSetup>();
+            analysis = provider.GetRequiredService<ISentimentAnalysis>();
         }
 
         [OneTimeTearDown]
@@ -40,22 +41,17 @@ namespace Wikiled.Sentiment.Service.Tests.Acceptance
         }
 
         [Test]
-        [Ignore("Can't make to work")]
         public async Task Measure()
         {
-            var request = new WorkRequest
-            {
-                CleanText = true,
-                Domain = "TwitterMarket"
-            };
+            analysis.Settings.CleanText = true;
+            analysis.Settings.Domain = "TwitterMarket";
 
-            var result = await analysisSetup.Setup(request).Measure(
+            var result = await analysis.Measure(
                              "This market is so bad and it will get worse",
                              CancellationToken.None).ConfigureAwait(false);
             Assert.AreEqual(10, result.TotalWords);
             Assert.AreEqual(1, result.Stars);
             Assert.AreEqual(1, result.Sentences.Count);
-            Assert.Fail();
         }
     }
 }

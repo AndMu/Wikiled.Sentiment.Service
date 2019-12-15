@@ -17,6 +17,7 @@ using Wikiled.Sentiment.Analysis.Containers;
 using Wikiled.Sentiment.Api.Request.Messages;
 using Wikiled.Sentiment.Service.Logic;
 using Wikiled.Sentiment.Service.Logic.Storage;
+using Wikiled.Sentiment.Service.Services;
 using Wikiled.Sentiment.Service.Services.Controllers;
 using Wikiled.Sentiment.Text.MachineLearning;
 using Wikiled.Sentiment.Text.Parser;
@@ -168,6 +169,7 @@ namespace Wikiled.Sentiment.Service
 
             builder.AddSingleton<IDocumentStorage, SimpleDocumentStorage>();
             builder.AddScoped<IDocumentConverter, DocumentConverter>();
+            builder.AddHostedService<WarmupService>();
         }
 
         private static Task JsonExceptionHandler(HttpContext context)
