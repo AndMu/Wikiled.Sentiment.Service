@@ -1,6 +1,8 @@
-﻿namespace Wikiled.Sentiment.Api.Request
+﻿using Wikiled.WebSockets.Definitions.Messages;
+
+namespace Wikiled.Sentiment.Api.Request.Messages
 {
-    public class TrainRequest
+    public class TrainMessage : Message
     {
         public bool CleanText { get; set; }
 

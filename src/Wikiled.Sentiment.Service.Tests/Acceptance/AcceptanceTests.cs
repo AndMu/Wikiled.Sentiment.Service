@@ -1,14 +1,11 @@
-using System;
+using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
 using Wikiled.Common.Net.Client;
 using Wikiled.Common.Utilities.Modules;
 using Wikiled.Sentiment.Api.Request;
 using Wikiled.Sentiment.Api.Service;
-using Wikiled.Sentiment.Api.Service.Module;
-using Wikiled.Sentiment.Api.Service.Mqtt;
 using Wikiled.Server.Core.Testing.Server;
 
 namespace Wikiled.Sentiment.Service.Tests.Acceptance
@@ -25,8 +22,6 @@ namespace Wikiled.Sentiment.Service.Tests.Acceptance
         {
             wrapper = ServerWrapper.Create<Startup>(TestContext.CurrentContext.TestDirectory, services => { });
             var services = new ServiceCollection();
-            services.RegisterModule(
-                new SentimentApiModule(new MqttConnectionInfo(new Uri("http://localhost:1883/mqtt"), "TestId")));
             var provider = services.BuildServiceProvider();
             analysisSetup = provider.GetService<ISentimentAnalysisSetup>();
         }

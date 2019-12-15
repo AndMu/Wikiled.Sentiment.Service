@@ -2,26 +2,17 @@ import os
 import socket
 from os import path
 
-from pypsenti import SentimentAnalysis, SentimentConnection, Document
+from psenti import SentimentAnalysis, SentimentConnection, Document, add_logger
 
 import logging
 # create logger
-logger = logging.getLogger('pypsenti')
-logger.setLevel(logging.DEBUG)
+logger = logging.getLogger('psenti')
 
-# create console handler and set level to debug
-ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
-
-# create formatter
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-# add formatter to ch
-ch.setFormatter(formatter)
-logger.addHandler(ch)
+add_logger(logger)
 
 user_name = socket.gethostname()
-connection = SentimentConnection(host='192.168.0.70', port=7044, client_id=user_name)
+connection = SentimentConnection(host='localhost', port=5000, client_id=user_name)
+
 
 def sentiment_analysis():
     documents = ['I like this bool :)', 'short it baby']
@@ -53,20 +44,26 @@ def read_documents(path_folder: str, class_type: bool):
 
 def save_documents():
 
-    all_documents = read_documents('E:/DataSets/aclImdb/All/Train/neg', False)
+    print("Loading Negative files")
+    all_documents = read_documents('D:/DataSets/aclImdb/All/Train/neg', False)
+    print("Sending...")
     connection.save_documents('Test', all_documents)
 
-    all_documents = read_documents('E:/DataSets/aclImdb/All/Train/pos', True)
+    print("Loading Positive files")
+    all_documents = read_documents('D:/DataSets/aclImdb/All/Train/pos', True)
+    print("Sending...")
     connection.save_documents('Test', all_documents)
 
 
 def train():
-    analysis = SentimentAnalysis(SentimentConnection('TestConnection17'), domain='market', clean=True)
+    analysis = SentimentAnalysis(connection, domain='market', clean=True)
     analysis.train('Test')
 
 
 if __name__ == "__main__":
     #save_documents()
-    #train()
+    train()
+    print('Test')
+    sentiment_analysis()
     sentiment_analysis()
 

@@ -26,14 +26,14 @@ def find_version(*file_paths):
     raise RuntimeError("Unable to find version string.")
 
 
-project_name = 'pypsenti'
+project_name = 'psenti'
 
 setuptools.setup(
     name=project_name,
     version=find_version(project_name, "__init__.py"),
     python_requires='>3.6',
     author="Wikiled",    
-    description="pypSenti server API",
+    description="pSenti API",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/AndMu/Wikiled.Sentiment.Service",

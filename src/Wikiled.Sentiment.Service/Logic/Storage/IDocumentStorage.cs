@@ -6,7 +6,7 @@ namespace Wikiled.Sentiment.Service.Logic.Storage
 {
     public interface IDocumentStorage
     {
-        Task Save(SaveRequest request);
+        Task Save(SaveRequest message);
 
         int Count(string client, string name);
 
