@@ -1,7 +1,17 @@
 import os
+import socket
 from os import path
 
-from pysenti import SentimentAnalysis, SentimentConnection, Document
+from psenti import SentimentAnalysis, SentimentConnection, Document, add_logger
+
+import logging
+# create logger
+logger = logging.getLogger('psenti')
+
+add_logger(logger)
+
+user_name = socket.gethostname()
+connection = SentimentConnection(host='localhost', port=5000, client_id=user_name)
 
 
 def sentiment_analysis():
@@ -11,7 +21,8 @@ def sentiment_analysis():
     dictionary['BOOL'] = 1
 
     # with custom lexicon and Twitter type cleaning
-    analysis = SentimentAnalysis(SentimentConnection('TestConnection17'), 'market', dictionary, clean=True, model='Test')
+    # analysis = SentimentAnalysis(connection, 'market', dictionary, clean=True, model='Test')
+    analysis = SentimentAnalysis(connection, 'market', dictionary, clean=True)
     for result in analysis.detect_sentiment_text(documents):
         print(result)
 
@@ -32,21 +43,27 @@ def read_documents(path_folder: str, class_type: bool):
 
 
 def save_documents():
-    connection = SentimentConnection('TestConnection17')
-    all_documents = read_documents('E:/DataSets/aclImdb/All/Train/neg', False)
+
+    print("Loading Negative files")
+    all_documents = read_documents('D:/DataSets/aclImdb/All/Train/neg', False)
+    print("Sending...")
     connection.save_documents('Test', all_documents)
 
-    all_documents = read_documents('E:/DataSets/aclImdb/All/Train/pos', True)
+    print("Loading Positive files")
+    all_documents = read_documents('D:/DataSets/aclImdb/All/Train/pos', True)
+    print("Sending...")
     connection.save_documents('Test', all_documents)
 
 
 def train():
-    analysis = SentimentAnalysis(SentimentConnection('TestConnection17'), domain='market', clean=True)
+    analysis = SentimentAnalysis(connection, domain='market', clean=True)
     analysis.train('Test')
 
 
 if __name__ == "__main__":
     #save_documents()
-    #train()
+    train()
+    print('Test')
+    sentiment_analysis()
     sentiment_analysis()
 

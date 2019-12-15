@@ -2,7 +2,6 @@
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Logging;
-using MQTTnet.AspNetCore;
 using NLog.Web;
 
 namespace Wikiled.Sentiment.Service
@@ -34,7 +33,6 @@ namespace Wikiled.Sentiment.Service
             WebHost.CreateDefaultBuilder(args)
                 .UseStartup<Startup>()
                 .UseKestrel(o => {
-                    o.ListenAnyIP(5083, l => l.UseMqtt()); // mqtt pipeline
                     o.ListenAnyIP(5000); // default http pipeline
                 })
                 .ConfigureLogging(
