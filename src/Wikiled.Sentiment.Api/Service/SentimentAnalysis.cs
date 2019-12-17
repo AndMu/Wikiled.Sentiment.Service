@@ -94,10 +94,9 @@ namespace Wikiled.Sentiment.Api.Service
             var current = (WorkRequest)Settings.Clone();
 
             current.Documents = documents;
-            client.RegisterSubscription(new SentimentMessage { Request = current }, token)
-            var subscription = dataSubscription.Subscribe();
-            client.Send(new SentimentMessage { Request = current }, token);
-            return subscription;
+            
+            var subscription = client.Subscribe<Document>(new SentimentMessage { Request = current });
+            return subscription.Result;
         }
 
         public void Dispose()
