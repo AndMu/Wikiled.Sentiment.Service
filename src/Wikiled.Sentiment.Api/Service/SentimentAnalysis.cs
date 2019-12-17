@@ -13,7 +13,7 @@ using Wikiled.WebSockets.Definitions.Messages;
 
 namespace Wikiled.Sentiment.Api.Service
 {
-    public class SentimentAnalysis : ISentimentAnalysis
+    public sealed class SentimentAnalysis : ISentimentAnalysis
     {
         private readonly ILogger<SentimentAnalysis> logger;
 
@@ -56,9 +56,9 @@ namespace Wikiled.Sentiment.Api.Service
             }
         }
 
-        public IObservable<(string, double?)> Measure((string Id, string Text)[] items, CancellationToken token)
+        public async Task<IObservable<(string, double?)>> Measure((string Id, string Text)[] items, CancellationToken token)
         {
-            return Measure(items.Select(item => new SingleRequestData { Id = item.Id, Text = item.Text }).ToArray(), token)
+            return (await Measure(items.Select(item => new SingleRequestData { Id = item.Id, Text = item.Text }).ToArray(), token).ConfigureAwait(false))
                 .Select(
                     item =>
                     {
@@ -76,10 +76,10 @@ namespace Wikiled.Sentiment.Api.Service
 
         public async Task<Document> Measure(SingleRequestData document, CancellationToken token)
         {
-            return await Measure(new[] { document }, token).FirstOrDefaultAsync();
+            return await (await Measure(new[] { document }, token).ConfigureAwait(false)).FirstOrDefaultAsync();
         }
 
-        public IObservable<Document> Measure(SingleRequestData[] documents, CancellationToken token)
+        public async Task<IObservable<Document>> Measure(SingleRequestData[] documents, CancellationToken token)
         {
             if (documents is null)
             {
@@ -92,11 +92,10 @@ namespace Wikiled.Sentiment.Api.Service
             }
 
             var current = (WorkRequest)Settings.Clone();
-
             current.Documents = documents;
             
-            var subscription = client.Subscribe<Document>(new SentimentMessage { Request = current });
-            return subscription.Result;
+            var subscription = await client.Subscribe<Document>(new SentimentMessage { Request = current }).ConfigureAwait(false);
+            return subscription.Subscribe();
         }
 
         public void Dispose()

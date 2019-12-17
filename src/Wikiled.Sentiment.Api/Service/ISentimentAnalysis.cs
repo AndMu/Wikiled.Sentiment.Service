@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Wikiled.Sentiment.Api.Request;
@@ -13,13 +12,13 @@ namespace Wikiled.Sentiment.Api.Service
 
         Task<Document> Measure(SingleRequestData document, CancellationToken token);
         
-		IObservable<Document> Measure(SingleRequestData[] documents, CancellationToken token);
+		Task<IObservable<Document>> Measure(SingleRequestData[] documents, CancellationToken token);
 		
         Task<Document> Measure(string text, CancellationToken token);
 
         Task<double?> Measure(string text);
 
-        IObservable<(string, double?)> Measure((string Id, string Text)[] items, CancellationToken token);
+        Task<IObservable<(string, double?)>> Measure((string Id, string Text)[] items, CancellationToken token);
 
         WorkRequest Settings { get; }
     }

@@ -8,7 +8,7 @@ namespace Wikiled.Sentiment.Api.Service
     {
         public IServiceCollection ConfigureServices(IServiceCollection services)
         {
-            services.RegisterModule(new ClientServiceModule { IsSingleton = false });
+            services.RegisterModule<ClientServiceModule>();
             services.RegisterModule<CommonModule>();
             services.RegisterModule<LoggingModule>();
             services.AddTransient<ISentimentAnalysis, SentimentAnalysis>();

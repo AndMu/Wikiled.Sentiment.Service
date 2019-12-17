@@ -1,3 +1,4 @@
+using System;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using System.Threading;
@@ -7,6 +8,7 @@ using Wikiled.Common.Utilities.Modules;
 using Wikiled.Sentiment.Api.Request;
 using Wikiled.Sentiment.Api.Service;
 using Wikiled.Server.Core.Testing.Server;
+using Wikiled.WebSockets.Client.Definition;
 
 namespace Wikiled.Sentiment.Service.Tests.Acceptance
 {
@@ -17,6 +19,8 @@ namespace Wikiled.Sentiment.Service.Tests.Acceptance
 
         private ISentimentAnalysis analysis;
 
+        private IClient client;
+
         [OneTimeSetUp]
         public void SetUp()
         {
@@ -25,6 +29,7 @@ namespace Wikiled.Sentiment.Service.Tests.Acceptance
             services.RegisterModule<SentimentApiModule>();
             var provider = services.BuildServiceProvider();
             analysis = provider.GetRequiredService<ISentimentAnalysis>();
+            client = provider.GetRequiredService<IClient>();
         }
 
         [OneTimeTearDown]
@@ -43,6 +48,7 @@ namespace Wikiled.Sentiment.Service.Tests.Acceptance
         [Test]
         public async Task Measure()
         {
+            await client.Connect(new Uri("Test")).ConfigureAwait(false);
             analysis.Settings.CleanText = true;
             analysis.Settings.Domain = "TwitterMarket";
 
