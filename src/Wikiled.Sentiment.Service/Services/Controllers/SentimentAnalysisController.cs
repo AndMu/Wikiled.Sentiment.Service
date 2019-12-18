@@ -57,9 +57,10 @@ namespace Wikiled.Sentiment.Service.Services.Controllers
             }
 
             var request = message.Request;
+
             if (request?.Documents == null)
             {
-                return;
+                throw new Exception("Nothing to process");
             }
 
             if (request.Documents.Length > 500)
@@ -67,66 +68,87 @@ namespace Wikiled.Sentiment.Service.Services.Controllers
                 throw new Exception("Too many documents. Maximum is 500");
             }
 
-            var monitor = new PerformanceMonitor(request.Documents.Length);
-            using (Observable.Interval(TimeSpan.FromSeconds(10))
-                .Subscribe(item => logger.LogInformation(monitor.ToString())))
+            var completed = new CompletedMessage();
+            try
             {
-                ISentimentDataHolder loader = default;
-                if (request.Dictionary != null &&
-                    request.Dictionary.Count > 0)
-                {
-                    logger.LogInformation("Creating custom dictionary with {0} words", request.Dictionary.Count);
-                    loader = SentimentDataHolder.Load(request.Dictionary.Select(item =>
-                        new WordSentimentValueData(item.Key, new SentimentValueData(item.Value))));
-                }
-                else if (!string.IsNullOrEmpty(request.Domain))
-                {
-                    logger.LogInformation("Using Domain dictionary [{0}]", request.Domain);
-                    loader = lexiconLoader.GetLexicon(request.Domain);
-                }
+                var monitor = new PerformanceMonitor(request.Documents.Length);
 
-                string modelLocation = null;
-                if (!string.IsNullOrEmpty(request.Model))
+                using (Observable.Interval(TimeSpan.FromSeconds(10))
+                                 .Subscribe(item => logger.LogInformation(monitor.ToString())))
                 {
-                    logger.LogInformation("Using model path: {0}", request.Model);
-                    modelLocation = storage.GetLocation(target.Connection.User, request.Model, ServiceConstants.Model);
-                    if (!Directory.Exists(modelLocation))
+                    ISentimentDataHolder loader = default;
+
+                    if (request.Dictionary != null &&
+                        request.Dictionary.Count > 0)
                     {
-                        throw new ApplicationException($"Can't find model {request.Model}");
+                        logger.LogInformation("Creating custom dictionary with {0} words", request.Dictionary.Count);
+
+                        loader = SentimentDataHolder.Load(request.Dictionary.Select(item =>
+                                                                                        new WordSentimentValueData(
+                                                                                            item.Key,
+                                                                                            new SentimentValueData(item.Value))));
                     }
-                }
-
-                using (var scope = provider.CreateScope())
-                {
-                    var container = scope.ServiceProvider.GetService<ISessionContainer>();
-
-                    var client = container.GetTesting(modelLocation);
-                    var converter = scope.ServiceProvider.GetService<IDocumentConverter>();
-                    client.Init();
-                    client.Pipeline.ResetMonitor();
-                    if (loader != null)
+                    else if (!string.IsNullOrEmpty(request.Domain))
                     {
-                        client.Lexicon = loader;
+                        logger.LogInformation("Using Domain dictionary [{0}]", request.Domain);
+                        loader = lexiconLoader.GetLexicon(request.Domain);
                     }
 
-                    await client.Process(request.Documents.Select(item => converter.Convert(item, request.CleanText))
-                            .ToObservable())
-                        .Select(item =>
-                        {
-                            monitor.Increment();
-                            return item;
-                        })
-                        .Buffer(TimeSpan.FromSeconds(5), 10, scheduler)
-                        .Select(async item =>
-                        {
-                            var result = new ResultMessage<Document> { Data = item.Select(x => x.Processed).ToArray() };
-                            await target.Write(result, token).ConfigureAwait(false);
-                            return Unit.Default;
-                        })
-                        .Merge();
-                }
+                    string modelLocation = null;
 
-                logger.LogInformation("Completed with final performance: {0}", monitor);
+                    if (!string.IsNullOrEmpty(request.Model))
+                    {
+                        logger.LogInformation("Using model path: {0}", request.Model);
+                        modelLocation = storage.GetLocation(target.Connection.User, request.Model, ServiceConstants.Model);
+
+                        if (!Directory.Exists(modelLocation))
+                        {
+                            throw new ApplicationException($"Can't find model {request.Model}");
+                        }
+                    }
+
+                    using (var scope = provider.CreateScope())
+                    {
+                        var container = scope.ServiceProvider.GetService<ISessionContainer>();
+
+                        var client = container.GetTesting(modelLocation);
+                        var converter = scope.ServiceProvider.GetService<IDocumentConverter>();
+                        client.Init();
+                        client.Pipeline.ResetMonitor();
+
+                        if (loader != null)
+                        {
+                            client.Lexicon = loader;
+                        }
+
+                        await client.Process(request.Documents.Select(item => converter.Convert(item, request.CleanText))
+                                                    .ToObservable())
+                                    .Select(item =>
+                                    {
+                                        monitor.Increment();
+                                        return item;
+                                    })
+                                    .Buffer(TimeSpan.FromSeconds(5), 10, scheduler)
+                                    .Select(async item =>
+                                    {
+                                        var result = new ResultMessage<Document> { Data = item.Select(x => x.Processed).ToArray() };
+                                        await target.Write(result, token).ConfigureAwait(false);
+                                        return Unit.Default;
+                                    })
+                                    .Merge();
+                    }
+
+                    logger.LogInformation("Completed with final performance: {0}", monitor);
+                    completed.Message = "Testing Completed";
+                    await target.Write(completed, token).ConfigureAwait(false);
+                }
+            }
+            catch (Exception e)
+            {
+                completed.Message = e.Message;
+                await target.Write(completed, token).ConfigureAwait(false);
+                completed.IsError = true;
+                throw;
             }
         }
     }

@@ -1,18 +1,20 @@
-using System;
-using System.Collections.Immutable;
-using System.Reactive.Concurrency;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
+using System;
+using System.Reactive.Concurrency;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Configuration;
+using NLog.Extensions.Logging;
+using Wikiled.Common.Logging;
 using Wikiled.Common.Net.Client;
 using Wikiled.Common.Utilities.Modules;
-using Wikiled.Sentiment.Api.Request;
 using Wikiled.Sentiment.Api.Service;
 using Wikiled.Server.Core.Testing.Server;
+using Wikiled.WebSockets.Client.Connection;
 using Wikiled.WebSockets.Client.Definition;
+using Wikiled.WebSockets.Client.Logic;
 
 namespace Wikiled.Sentiment.Service.Tests.Acceptance
 {
@@ -25,14 +27,31 @@ namespace Wikiled.Sentiment.Service.Tests.Acceptance
 
         private IClient client;
 
-        private readonly Uri streamUri = new Uri("ws://localhost/ws");
+        private readonly Uri streamUri = new Uri("ws://localhost/stream");
 
         [OneTimeSetUp]
         public void SetUp()
         {
-            wrapper = ServerWrapper.Create<Startup>(TestContext.CurrentContext.TestDirectory, services => { });
+            wrapper = ServerWrapper.Create<Startup>(
+                TestContext.CurrentContext.TestDirectory,
+                services =>
+                {
+                    services.AddSingleton(ApplicationLogging.LoggerFactory);
+                    services.AddLogging(item => item.AddNLog());
+                },
+                (context, config) =>
+                {
+                    var env = context.HostingEnvironment;
+                    
+                    config.SetBasePath(env.ContentRootPath);
+                    config.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
+                    config.AddJsonFile($"appsettings.{env.EnvironmentName}.json", optional: true);
+                    config.AddEnvironmentVariables();
+                    //config.AddInMemoryCollection(arrayDict);
+                });
             var services = new ServiceCollection();
             services.RegisterModule<SentimentApiModule>();
+            services.AddLogging(item => item.AddNLog());
             client = ConstructClient(services);
             services.AddSingleton(client);
             var provider = services.BuildServiceProvider();
@@ -71,10 +90,9 @@ namespace Wikiled.Sentiment.Service.Tests.Acceptance
         {
             var provider = collection.BuildServiceProvider();
 
-            return new ClientApi(provider.GetService<ILogger<ClientApi>>(),
+            return new ClientApi(provider.GetService<ILoggerFactory>(),
                 () => ConstructClientFactory(provider).Result,
-                TaskPoolScheduler.Default,
-                provider.GetService<ISubscriptionFactory>());
+                TaskPoolScheduler.Default);
         }
 
         private async Task<IConnection> ConstructClientFactory(ServiceProvider provider)

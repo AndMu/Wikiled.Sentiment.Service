@@ -159,10 +159,7 @@ namespace Wikiled.Sentiment.Service
         private static void SetupSentiment(IServiceCollection builder, ConfigurationHandler configuration, string path)
         {
             ParallelHelper.Options = new ParallelOptions();
-            ParallelHelper.Options.MaxDegreeOfParallelism = Environment.ProcessorCount / 2;
-            ParallelHelper.Options.MaxDegreeOfParallelism = ParallelHelper.Options.MaxDegreeOfParallelism > 6
-                ? 6
-                : ParallelHelper.Options.MaxDegreeOfParallelism;
+            ParallelHelper.Options.MaxDegreeOfParallelism = Environment.ProcessorCount > 8 ? Environment.ProcessorCount / 2 : Environment.ProcessorCount;
 
             builder.RegisterModule(new SentimentMainModule());
             builder.RegisterModule(new SentimentServiceModule(configuration) { Lexicons = path });

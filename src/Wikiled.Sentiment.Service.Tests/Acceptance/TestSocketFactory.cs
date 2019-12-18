@@ -1,4 +1,9 @@
-﻿namespace Wikiled.Sentiment.Service.Tests.Acceptance
+﻿using System;
+using System.Net.WebSockets;
+using System.Threading.Tasks;
+using Wikiled.WebSockets.Client.Connection;
+
+namespace Wikiled.Sentiment.Service.Tests.Acceptance
 {
     public class TestSocketFactory : ISocketFactory
     {

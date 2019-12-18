@@ -2,6 +2,7 @@
 using System;
 using System.Linq;
 using System.Reactive.Linq;
+using System.Reactive.Subjects;
 using System.Threading;
 using System.Threading.Tasks;
 using Wikiled.MachineLearning.Mathematics;
@@ -20,6 +21,8 @@ namespace Wikiled.Sentiment.Api.Service
         private readonly IClient client;
 
         private readonly IDisposable subscription;
+
+        private readonly Subject<bool> completed = new Subject<bool>();
 
         public SentimentAnalysis(ILoggerFactory loggerFactory, IClient client)
         {
@@ -95,13 +98,14 @@ namespace Wikiled.Sentiment.Api.Service
             current.Documents = documents;
             
             var subscription = await client.Subscribe<Document>(new SentimentMessage { Request = current }).ConfigureAwait(false);
-            return subscription.Subscribe();
+            return subscription.Subscribe().TakeUntil(completed);
         }
 
         public void Dispose()
         {
             client?.Dispose();
             subscription?.Dispose();
+            completed?.Dispose();
         }
 
         private void ProcessMessage(Message message)
@@ -119,9 +123,8 @@ namespace Wikiled.Sentiment.Api.Service
                         logger.LogInformation("Processing completed: {0}", completedMessage.Message);
                     }
 
-                    break;
-                case ConnectedMessage connectedMessage:
-                    logger.LogInformation("Connected");
+                    completed.OnNext(completedMessage.IsError);
+
                     break;
             }
         }
