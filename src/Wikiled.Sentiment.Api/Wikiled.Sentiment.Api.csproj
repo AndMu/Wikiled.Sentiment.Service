@@ -18,7 +18,7 @@
     <PackageReference Include="Wikiled.Common.Net" Version="1.2.10" />
     <PackageReference Include="Wikiled.Common.Utilities" Version="1.2.39" />
     <PackageReference Include="Wikiled.Text.Analysis" Version="1.7.42" />
-    <PackageReference Include="Wikiled.WebSockets.Client" Version="1.0.33" />
+    <PackageReference Include="Wikiled.WebSockets.Client" Version="1.0.35" />
   </ItemGroup>
 
 </Project>

@@ -1,11 +1,11 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
 using System.Linq;
-using System.Reactive.Concurrency;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using System.Threading;
 using System.Threading.Tasks;
+using Wikiled.Common.Utilities.Helpers;
 using Wikiled.MachineLearning.Mathematics;
 using Wikiled.Sentiment.Api.Request;
 using Wikiled.Sentiment.Api.Request.Messages;
@@ -25,10 +25,13 @@ namespace Wikiled.Sentiment.Api.Service
 
         private readonly Subject<bool> completed = new Subject<bool>();
 
-        public SentimentAnalysis(ILoggerFactory loggerFactory, IClient client)
+        private readonly IDataSubscription<Document> dataSubscription;
+
+        public SentimentAnalysis(ILoggerFactory loggerFactory, IClient client, IDataSubscription<Document> dataSubscription)
         {
             logger = loggerFactory?.CreateLogger<SentimentAnalysis>() ?? throw new ArgumentNullException(nameof(logger));
             this.client = client ?? throw new ArgumentNullException(nameof(client));
+            this.dataSubscription = dataSubscription ?? throw new ArgumentNullException(nameof(dataSubscription));
             subscription = client.Messages.Subscribe(ProcessMessage);
         }
 
@@ -98,8 +101,8 @@ namespace Wikiled.Sentiment.Api.Service
             var current = (WorkRequest)Settings.Clone();
             current.Documents = documents;
             
-            var subscription = client.GetSubscription<Document>(new SentimentMessage { Request = current });
-            return subscription.Subscribe().TakeUntil(completed);
+            client.Send(new SentimentMessage { Request = current }, CancellationToken.None).ForgetOrThrow(logger);
+            return dataSubscription.Subscribe();
         }
 
         public void Dispose()

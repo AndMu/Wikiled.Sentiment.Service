@@ -79,8 +79,8 @@ namespace Wikiled.Sentiment.Service.Tests.Acceptance
             analysis.Settings.Domain = "TwitterMarket";
 
             var result = await analysis.Measure(
-                             "This market is so bad and it will get worse",
-                             CancellationToken.None).ConfigureAwait(false);
+                                            "This market is so bad and it will get worse",
+                                            CancellationToken.None).ConfigureAwait(false);
             Assert.AreEqual(10, result.TotalWords);
             Assert.AreEqual(1, result.Stars);
             Assert.AreEqual(1, result.Sentences.Count);
@@ -89,9 +89,8 @@ namespace Wikiled.Sentiment.Service.Tests.Acceptance
         private IClient ConstructClient(ServiceCollection collection)
         {
             var provider = collection.BuildServiceProvider();
-
-            return new ClientApi(provider.GetService<ILoggerFactory>(),
-                () => ConstructClientFactory(provider).Result,
+            return new ClientApi(provider.GetService<ILogger<ClientApi>>(),
+                () => ConstructClientFactory(provider),
                 TaskPoolScheduler.Default);
         }
 
