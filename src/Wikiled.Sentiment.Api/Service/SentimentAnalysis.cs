@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
 using System.Linq;
+using System.Reactive.Concurrency;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using System.Threading;
@@ -59,9 +60,9 @@ namespace Wikiled.Sentiment.Api.Service
             }
         }
 
-        public async Task<IObservable<(string, double?)>> Measure((string Id, string Text)[] items, CancellationToken token)
+        public IObservable<(string, double?)> Measure((string Id, string Text)[] items, CancellationToken token)
         {
-            return (await Measure(items.Select(item => new SingleRequestData { Id = item.Id, Text = item.Text }).ToArray(), token).ConfigureAwait(false))
+            return Measure(items.Select(item => new SingleRequestData { Id = item.Id, Text = item.Text }).ToArray(), token)
                 .Select(
                     item =>
                     {
@@ -79,10 +80,10 @@ namespace Wikiled.Sentiment.Api.Service
 
         public async Task<Document> Measure(SingleRequestData document, CancellationToken token)
         {
-            return await (await Measure(new[] { document }, token).ConfigureAwait(false)).FirstOrDefaultAsync();
+            return await Measure(new[] { document }, token).FirstOrDefaultAsync();
         }
 
-        public async Task<IObservable<Document>> Measure(SingleRequestData[] documents, CancellationToken token)
+        public IObservable<Document> Measure(SingleRequestData[] documents, CancellationToken token)
         {
             if (documents is null)
             {
@@ -97,7 +98,7 @@ namespace Wikiled.Sentiment.Api.Service
             var current = (WorkRequest)Settings.Clone();
             current.Documents = documents;
             
-            var subscription = await client.Subscribe<Document>(new SentimentMessage { Request = current }).ConfigureAwait(false);
+            var subscription = client.GetSubscription<Document>(new SentimentMessage { Request = current });
             return subscription.Subscribe().TakeUntil(completed);
         }
 
@@ -124,7 +125,6 @@ namespace Wikiled.Sentiment.Api.Service
                     }
 
                     completed.OnNext(completedMessage.IsError);
-
                     break;
             }
         }

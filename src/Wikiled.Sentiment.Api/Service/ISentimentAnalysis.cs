@@ -12,13 +12,13 @@ namespace Wikiled.Sentiment.Api.Service
 
         Task<Document> Measure(SingleRequestData document, CancellationToken token);
         
-		Task<IObservable<Document>> Measure(SingleRequestData[] documents, CancellationToken token);
+		IObservable<Document> Measure(SingleRequestData[] documents, CancellationToken token);
 		
         Task<Document> Measure(string text, CancellationToken token);
 
         Task<double?> Measure(string text);
 
-        Task<IObservable<(string, double?)>> Measure((string Id, string Text)[] items, CancellationToken token);
+        IObservable<(string, double?)> Measure((string Id, string Text)[] items, CancellationToken token);
 
         WorkRequest Settings { get; }
     }

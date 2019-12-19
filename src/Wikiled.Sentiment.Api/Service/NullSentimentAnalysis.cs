@@ -19,9 +19,9 @@ namespace Wikiled.Sentiment.Api.Service
             return Task.FromResult((Document)null);
         }
 
-        public Task<IObservable<Document>> Measure(SingleRequestData[] documents, CancellationToken token)
+        public IObservable<Document> Measure(SingleRequestData[] documents, CancellationToken token)
         {
-            return Task.FromResult(Observable.Empty<Document>());
+            return Observable.Empty<Document>();
         }
 
         public Task<Document> Measure(string text, CancellationToken token)
@@ -34,9 +34,9 @@ namespace Wikiled.Sentiment.Api.Service
             return Task.FromResult((double?)null);
         }
 
-        public Task<IObservable<(string, double?)>> Measure((string Id, string Text)[] items, CancellationToken token)
+        public IObservable<(string, double?)> Measure((string Id, string Text)[] items, CancellationToken token)
         {
-            return Task.FromResult(Observable.Empty<(string, double?)>());
+            return Observable.Empty<(string, double?)>();
         }
 
         public WorkRequest Settings { get; } = new WorkRequest();
