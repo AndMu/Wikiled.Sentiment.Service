@@ -12,6 +12,7 @@ using Wikiled.Sentiment.Api.Request.Messages;
 using Wikiled.Text.Analysis.Structure;
 using Wikiled.WebSockets.Client.Definition;
 using Wikiled.WebSockets.Definitions.Messages;
+using Wikiled.WebSockets.Definitions.Protocol.Definitions;
 
 namespace Wikiled.Sentiment.Api.Service
 {
@@ -23,6 +24,8 @@ namespace Wikiled.Sentiment.Api.Service
 
         private readonly IDisposable subscription;
 
+        private readonly IDisposable stateSubscription;
+
         private readonly Subject<bool> completed = new Subject<bool>();
 
         private readonly IDataSubscription<Document> dataSubscription;
@@ -33,6 +36,7 @@ namespace Wikiled.Sentiment.Api.Service
             this.client = client ?? throw new ArgumentNullException(nameof(client));
             this.dataSubscription = dataSubscription ?? throw new ArgumentNullException(nameof(dataSubscription));
             subscription = client.Messages.Subscribe(ProcessMessage);
+            stateSubscription = client.State.Where(item => item == ConnectionState.Error).Subscribe(item => completed.OnError(new Exception("Connection error")));
         }
 
         public Task<Document> Measure(string text, CancellationToken token)
@@ -102,13 +106,14 @@ namespace Wikiled.Sentiment.Api.Service
             current.Documents = documents;
             
             client.Send(new SentimentMessage { Request = current }, CancellationToken.None).ForgetOrThrow(logger);
-            return dataSubscription.Subscribe();
+            return dataSubscription.Subscribe().TakeUntil(completed);
         }
 
         public void Dispose()
         {
-            client?.Dispose();
+            stateSubscription?.Dispose();
             subscription?.Dispose();
+            client?.Dispose();
             completed?.Dispose();
         }
 
@@ -121,13 +126,14 @@ namespace Wikiled.Sentiment.Api.Service
                     if (completedMessage.IsError)
                     {
                         logger.LogError("Processing error: {0}", completedMessage.Message);
+                        completed.OnError(new Exception("Connection error"));
                     }
                     else
                     {
                         logger.LogInformation("Processing completed: {0}", completedMessage.Message);
+                        completed.OnNext(true);
                     }
-
-                    completed.OnNext(completedMessage.IsError);
+                    
                     break;
             }
         }
