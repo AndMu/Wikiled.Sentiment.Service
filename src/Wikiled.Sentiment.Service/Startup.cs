@@ -17,6 +17,7 @@ using Wikiled.Sentiment.Analysis.Containers;
 using Wikiled.Sentiment.Api.Request.Messages;
 using Wikiled.Sentiment.Service.Logic;
 using Wikiled.Sentiment.Service.Logic.Storage;
+using Wikiled.Sentiment.Service.Services;
 using Wikiled.Sentiment.Service.Services.Controllers;
 using Wikiled.Sentiment.Text.MachineLearning;
 using Wikiled.Sentiment.Text.Parser;
@@ -158,16 +159,14 @@ namespace Wikiled.Sentiment.Service
         private static void SetupSentiment(IServiceCollection builder, ConfigurationHandler configuration, string path)
         {
             ParallelHelper.Options = new ParallelOptions();
-            ParallelHelper.Options.MaxDegreeOfParallelism = Environment.ProcessorCount / 2;
-            ParallelHelper.Options.MaxDegreeOfParallelism = ParallelHelper.Options.MaxDegreeOfParallelism > 6
-                ? 6
-                : ParallelHelper.Options.MaxDegreeOfParallelism;
+            ParallelHelper.Options.MaxDegreeOfParallelism = Environment.ProcessorCount > 8 ? Environment.ProcessorCount / 2 : Environment.ProcessorCount;
 
             builder.RegisterModule(new SentimentMainModule());
             builder.RegisterModule(new SentimentServiceModule(configuration) { Lexicons = path });
 
             builder.AddSingleton<IDocumentStorage, SimpleDocumentStorage>();
             builder.AddScoped<IDocumentConverter, DocumentConverter>();
+            builder.AddHostedService<WarmupService>();
         }
 
         private static Task JsonExceptionHandler(HttpContext context)

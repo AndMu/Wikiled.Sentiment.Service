@@ -6,8 +6,10 @@ using Wikiled.Text.Analysis.Structure;
 
 namespace Wikiled.Sentiment.Api.Service
 {
-    public interface ISentimentAnalysis
+    public interface ISentimentAnalysis : IDisposable
     {
+        Task Connect(Uri uri);
+
         Task<Document> Measure(SingleRequestData document, CancellationToken token);
         
 		IObservable<Document> Measure(SingleRequestData[] documents, CancellationToken token);
@@ -17,5 +19,7 @@ namespace Wikiled.Sentiment.Api.Service
         Task<double?> Measure(string text);
 
         IObservable<(string, double?)> Measure((string Id, string Text)[] items, CancellationToken token);
+
+        WorkRequest Settings { get; }
     }
 }

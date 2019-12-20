@@ -7,8 +7,13 @@ using Wikiled.Text.Analysis.Structure;
 
 namespace Wikiled.Sentiment.Api.Service
 {
-    public class NullSentimentAnalysis : ISentimentAnalysis
+    public sealed class NullSentimentAnalysis : ISentimentAnalysis
     {
+        public Task Connect(Uri uri)
+        {
+            return Task.CompletedTask;
+        }
+
         public Task<Document> Measure(SingleRequestData document, CancellationToken token)
         {
             return Task.FromResult((Document)null);
@@ -32,6 +37,12 @@ namespace Wikiled.Sentiment.Api.Service
         public IObservable<(string, double?)> Measure((string Id, string Text)[] items, CancellationToken token)
         {
             return Observable.Empty<(string, double?)>();
+        }
+
+        public WorkRequest Settings { get; } = new WorkRequest();
+
+        public void Dispose()
+        {
         }
     }
 }
