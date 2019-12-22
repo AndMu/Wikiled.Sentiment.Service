@@ -11,8 +11,8 @@ logger = logging.getLogger('psenti')
 add_logger(logger)
 
 user_name = socket.gethostname()
-connection = SentimentConnection(host='localhost', port=5000, client_id=user_name)
-
+host = '192.168.0.70'
+port = 7044
 
 def sentiment_analysis():
     documents = ['I like this bool :)', 'short it baby']
@@ -22,9 +22,10 @@ def sentiment_analysis():
 
     # with custom lexicon and Twitter type cleaning
     # analysis = SentimentAnalysis(connection, 'market', dictionary, clean=True, model='Test')
-    analysis = SentimentAnalysis(connection, 'market', dictionary, clean=True)
-    for result in analysis.detect_sentiment_text(documents):
-        print(result)
+    with SentimentConnection(host=host, port=port, client_id=user_name) as connection:
+        analysis = SentimentAnalysis(connection, 'market', dictionary, clean=True)
+        for result in analysis.detect_sentiment_text(documents):
+            print(result)
 
 
 def read_documents(path_folder: str, class_type: bool):
@@ -43,26 +44,27 @@ def read_documents(path_folder: str, class_type: bool):
 
 
 def save_documents():
+    with SentimentConnection(host=host, port=port, client_id=user_name) as connection:
+        print("Loading Negative files")
+        all_documents = read_documents('D:/DataSets/aclImdb/All/Train/neg', False)
+        print("Sending...")
+        connection.save_documents('Test', all_documents)
 
-    print("Loading Negative files")
-    all_documents = read_documents('D:/DataSets/aclImdb/All/Train/neg', False)
-    print("Sending...")
-    connection.save_documents('Test', all_documents)
-
-    print("Loading Positive files")
-    all_documents = read_documents('D:/DataSets/aclImdb/All/Train/pos', True)
-    print("Sending...")
-    connection.save_documents('Test', all_documents)
+        print("Loading Positive files")
+        all_documents = read_documents('D:/DataSets/aclImdb/All/Train/pos', True)
+        print("Sending...")
+        connection.save_documents('Test', all_documents)
 
 
 def train():
-    analysis = SentimentAnalysis(connection, domain='market', clean=True)
-    analysis.train('Test')
+    with SentimentConnection(host=host, port=port, client_id=user_name) as connection:
+        analysis = SentimentAnalysis(connection, domain='market', clean=True)
+        analysis.train('Test')
 
 
 if __name__ == "__main__":
     #save_documents()
-    train()
+    #train()
     print('Test')
     sentiment_analysis()
     sentiment_analysis()
