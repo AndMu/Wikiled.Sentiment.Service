@@ -38,6 +38,14 @@ class SentimentConnection(object):
             url = f'http://{self.host}/api/sentiment/domains'
             self.supported_domains = json.loads(session.get(url).content)
 
+    def delete_documents(self, name: str):
+        logger.info(f'Deleting document [{name}]...')
+        with Session() as session:
+            url = f'http://{self.host}/api/documents/delete/{self.client_id}/{name}'
+            result = session.post(url)
+            if result.status_code != 200:
+                raise ConnectionError(result.reason)
+
     def save_documents(self, name: str, documents: Document):
         logger.info(f'Saving document [{name}]: {len(documents)}...')
         with Session() as session:

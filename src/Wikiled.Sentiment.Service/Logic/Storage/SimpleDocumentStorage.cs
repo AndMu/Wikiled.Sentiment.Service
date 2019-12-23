@@ -70,6 +70,15 @@ namespace Wikiled.Sentiment.Service.Logic.Storage
             return files.Length;
         }
 
+        public void Delete(string client, string name)
+        {
+            var location = GetLocation(client, name);
+            if (Directory.Exists(location))
+            {
+                Directory.Delete(location, true);
+            }
+        }
+
         public string GetLocation(string client, string name, string type = "documents")
         {
             var directory = Path.Combine(env.ContentRootPath, "Storage", client, name, type);

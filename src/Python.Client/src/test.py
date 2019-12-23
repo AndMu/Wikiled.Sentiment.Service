@@ -11,8 +11,10 @@ logger = logging.getLogger('psenti')
 add_logger(logger)
 
 user_name = socket.gethostname()
-host = '192.168.0.70'
-port = 7044
+# host = '192.168.0.70'
+# port = 7044
+host = 'localhost'
+port = 5000
 
 def sentiment_analysis():
     documents = ['I like this bool :)', 'short it baby']
@@ -45,6 +47,7 @@ def read_documents(path_folder: str, class_type: bool):
 
 def save_documents():
     with SentimentConnection(host=host, port=port, client_id=user_name) as connection:
+        connection.delete_documents('Test')
         print("Loading Negative files")
         all_documents = read_documents('D:/DataSets/aclImdb/All/Train/neg', False)
         print("Sending...")
@@ -63,8 +66,8 @@ def train():
 
 
 if __name__ == "__main__":
-    #save_documents()
-    #train()
+    save_documents()
+    train()
     print('Test')
     sentiment_analysis()
     sentiment_analysis()
