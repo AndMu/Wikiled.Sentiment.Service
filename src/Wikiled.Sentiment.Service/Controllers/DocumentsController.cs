@@ -35,6 +35,14 @@ namespace Wikiled.Sentiment.Service.Controllers
             return Ok();
         }
 
+        [Route("delete/{userId}/{name}")]
+        [HttpPost]
+        public ActionResult Delete(string userId, string name)
+        {
+            storage.Delete(userId, name);
+            return Ok();
+        }
+
         [Route("check/{userId}/{name}")]
         [HttpGet]
         public ActionResult<int> Check(string userId, string name)

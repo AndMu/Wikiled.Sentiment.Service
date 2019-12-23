@@ -1,5 +1,7 @@
 import asyncio, queue
 import logging
+import sys
+
 logger_on = False
 
 
@@ -45,16 +47,15 @@ def add_logger(logger, level=logging.INFO):
         return
 
     logger_on = True
-    # create logger
     logger.setLevel(level)
 
-    # create console handler and set level to debug
-    ch = logging.StreamHandler()
-    ch.setLevel(level)
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setLevel(level)
 
     # create formatter
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
     # add formatter to ch
-    ch.setFormatter(formatter)
-    logger.addHandler(ch)
+    handler.setFormatter(formatter)
+
+    logger.handlers = [handler]
