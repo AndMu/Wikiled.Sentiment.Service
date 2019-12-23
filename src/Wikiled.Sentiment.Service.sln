@@ -14,8 +14,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Wikiled.Sentiment.Api", "Wi
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Wikiled.Sentiment.Service", "Wikiled.Sentiment.Service\Wikiled.Sentiment.Service.csproj", "{CBCA754E-F4B9-4EB3-A126-F71EDD107C98}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Wikiled.WebSockets.Server", "..\..\Wikiled.WebSockets\src\Wikiled.WebSockets.Server\Wikiled.WebSockets.Server.csproj", "{83D93045-3291-4DEC-9377-95929817980D}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -34,10 +32,6 @@ Global
 		{CBCA754E-F4B9-4EB3-A126-F71EDD107C98}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CBCA754E-F4B9-4EB3-A126-F71EDD107C98}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{CBCA754E-F4B9-4EB3-A126-F71EDD107C98}.Release|Any CPU.Build.0 = Release|Any CPU
-		{83D93045-3291-4DEC-9377-95929817980D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{83D93045-3291-4DEC-9377-95929817980D}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{83D93045-3291-4DEC-9377-95929817980D}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{83D93045-3291-4DEC-9377-95929817980D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
