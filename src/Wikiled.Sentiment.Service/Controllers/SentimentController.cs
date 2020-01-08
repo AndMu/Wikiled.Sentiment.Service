@@ -17,6 +17,8 @@ namespace Wikiled.Sentiment.Service.Controllers
     [TypeFilter(typeof(RequestValidationAttribute))]
     public class SentimentController : BaseController
     {
+        private readonly ILogger<SentimentController> logger;
+
         private readonly ITestingClient client;
 
         private readonly ILexiconLoader lexiconLoader;
@@ -29,6 +31,7 @@ namespace Wikiled.Sentiment.Service.Controllers
             this.client = client ?? throw new ArgumentNullException(nameof(client));
             this.lexiconLoader = lexiconLoader ?? throw new ArgumentNullException(nameof(lexiconLoader));
             this.documentConverter = documentConverter;
+            logger = factory.CreateLogger<SentimentController>();
 
             client.TrackArff = false;
             client.UseBuiltInSentiment = true;
@@ -45,19 +48,25 @@ namespace Wikiled.Sentiment.Service.Controllers
 
         [Route("parse")]
         [HttpPost]
-        public async Task<ActionResult<Document>> Parse([FromBody]SingleRequestData review)
+        public async Task<ActionResult<Document>> Parse([FromBody]SingleWorkRequest request)
         {
-            if (review == null)
+            if (request == null)
             {
-                throw new ArgumentNullException(nameof(review));
+                throw new ArgumentNullException(nameof(request));
             }
 
-            if (review.Id == null)
+            if (request.Review.Id == null)
             {
-                review.Id = Guid.NewGuid().ToString();
+                request.Review.Id = Guid.NewGuid().ToString();
             }
 
-            var result = await client.Process(documentConverter.Convert(review, true)).ConfigureAwait(false);
+            if (!string.IsNullOrEmpty(request.Domain))
+            {
+                logger.LogInformation("Using Domain dictionary [{0}]", request.Domain);
+                client.Lexicon = lexiconLoader.GetLexicon(request.Domain);
+            }
+
+            var result = await client.Process(documentConverter.Convert(request.Review, request.CleanText)).ConfigureAwait(false);
             return Ok(result.Processed);
         }
     }
