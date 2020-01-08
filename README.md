@@ -9,24 +9,20 @@ The core of **pSenti** is its lexicon-based system, so it shares many common NLP
 
 ## Python samples
 
-Working sample can be found [here](src/Python.Client/TestService.py)
+Library with samples can be found [here](src/Python.Client)
 
 ```
-url = 'http://{}/api/sentiment/parsestream'.format(self.host)
-data['documents'] = batch_request_documents
-json_object = json.dumps(data, indent=2)
-headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
-with session.post(url, json_object, headers=headers, stream=True) as r:
-	for line in r.iter_lines():                    
-		if line:
-			decoded_line = line.decode('utf-8')
-			sentimen_result = json.loads(decoded_line)
-			sentiment_class = 0
-			if sentimen_result['Stars'] is not None:
-				if sentimen_result['Stars'] > 3:
-					sentiment_class = 1
-				else:
-					sentiment_class = -1
-			id = processed_ids[sentimen_result['Id']]
-			yield (id, sentiment_class, sentimen_result)
+reviews = ['I love this hello kitty decal! I like that the bow is pink instead of red. Only bad thing is that after putting it on the window there a few air bubbles, but that most likely my fault. Shipped fast too.',
+                  'I bought this for my 3 yr old daughter when I took it out the pack it had a bad odour, cute but very cheap material easy to ripe.  When I tried it on her it was too big, but of course she liked it so I kept it. I dressed her up in it and she looked cute.']
+
+user_name = socket.gethostname()
+host = 'sentiment2.wikiled.com'
+port=80
+with SentimentConnection(host=host, port=port, client_id=user_name) as connection:
+    analysis = SentimentAnalysis(connection, domain='market')
+    for result in analysis.detect_sentiment_text(amazon_reviews):
+        if result['Stars'] is None:
+            print('No Sentinent')
+        else:
+            print(f'Sentinment Stars: {result["Stars"]:1.2f}')
 ```
