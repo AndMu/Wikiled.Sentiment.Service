@@ -13,8 +13,8 @@ add_logger(logger)
 user_name = socket.gethostname()
 # host = '192.168.0.70'
 # port = 7044
-host = 'localhost'
-port = 5000
+host = 'sentiment2.wikiled.com'
+port = 80
 
 def sentiment_analysis():
     documents = ['I like this bool :)', 'short it baby']
@@ -66,8 +66,8 @@ def train():
 
 
 if __name__ == "__main__":
-    save_documents()
-    train()
+    #save_documents()
+    #train()
     print('Test')
     sentiment_analysis()
     sentiment_analysis()
