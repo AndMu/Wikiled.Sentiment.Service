@@ -10,6 +10,7 @@ using NLog.Extensions.Logging;
 using Wikiled.Common.Logging;
 using Wikiled.Common.Net.Client;
 using Wikiled.Common.Utilities.Modules;
+using Wikiled.Sentiment.Api.Request;
 using Wikiled.Sentiment.Api.Service;
 using Wikiled.Server.Core.Testing.Server;
 using Wikiled.WebSockets.Client.Connection;
@@ -28,6 +29,8 @@ namespace Wikiled.Sentiment.Service.Tests.Acceptance
         private IClient client;
 
         private readonly Uri streamUri = new Uri("ws://localhost/stream");
+
+        private IBasicSentimentAnalysis basicSentiment;
 
         [OneTimeSetUp]
         public void SetUp()
@@ -50,12 +53,14 @@ namespace Wikiled.Sentiment.Service.Tests.Acceptance
                     //config.AddInMemoryCollection(arrayDict);
                 });
             var services = new ServiceCollection();
-            services.RegisterModule<SentimentApiModule>();
+            services.RegisterModule(new SentimentApiModule(new Uri("http://localhost")) { Client = wrapper.Client });
+            
             services.AddLogging(item => item.AddNLog());
             client = ConstructClient(services);
             services.AddSingleton(client);
             var provider = services.BuildServiceProvider();
             analysis = provider.GetRequiredService<ISentimentAnalysis>();
+            basicSentiment = provider.GetRequiredService<IBasicSentimentAnalysis>();
         }
 
         [OneTimeTearDown]
@@ -69,6 +74,22 @@ namespace Wikiled.Sentiment.Service.Tests.Acceptance
         {
             var response = await wrapper.ApiClient.GetRequest<RawResponse<string>>("api/sentiment/version", CancellationToken.None).ConfigureAwait(false);
             Assert.IsTrue(response.IsSuccess);
+        }
+
+        [Test]
+        public async Task BasicMeasure()
+        {
+            var request = new SingleWorkRequest
+            {
+                Domain = "market",
+                Review = new SingleRequestData { Text = "I like Text" }
+            };
+
+            var result = await basicSentiment.Measure(request, CancellationToken.None);
+            Assert.AreEqual(5, result.Stars);
+
+            result = await basicSentiment.Measure(request, CancellationToken.None);
+            Assert.AreEqual(5, result.Stars);
         }
 
         [Test]
