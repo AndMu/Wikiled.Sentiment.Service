@@ -3,12 +3,15 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Caching.Memory;
+using Wikiled.Sentiment.Analysis.Pipeline;
 using Wikiled.Sentiment.Analysis.Processing;
 using Wikiled.Sentiment.Api.Request;
 using Wikiled.Sentiment.Service.Logic;
 using Wikiled.Sentiment.Text.Parser;
 using Wikiled.Server.Core.ActionFilters;
 using Wikiled.Server.Core.Controllers;
+using Wikiled.Text.Analysis.Extensions;
 using Wikiled.Text.Analysis.Structure;
 
 namespace Wikiled.Sentiment.Service.Controllers
@@ -25,16 +28,24 @@ namespace Wikiled.Sentiment.Service.Controllers
 
         private readonly IDocumentConverter documentConverter;
 
-        public SentimentController(ILoggerFactory factory, ITestingClient client, ILexiconLoader lexiconLoader, IDocumentConverter documentConverter)
+        private readonly IMemoryCache cache;
+
+        public SentimentController(ILoggerFactory factory,
+                                   ITestingClient client,
+                                   ILexiconLoader lexiconLoader,
+                                   IDocumentConverter documentConverter,
+                                   IMemoryCache cache)
             : base(factory)
         {
             this.client = client ?? throw new ArgumentNullException(nameof(client));
             this.lexiconLoader = lexiconLoader ?? throw new ArgumentNullException(nameof(lexiconLoader));
             this.documentConverter = documentConverter;
+            this.cache = cache;
             logger = factory.CreateLogger<SentimentController>();
 
             client.TrackArff = false;
             client.UseBuiltInSentiment = true;
+
             // add limit of concurrent processing
             client.Init();
         }
@@ -49,6 +60,20 @@ namespace Wikiled.Sentiment.Service.Controllers
         [Route("parse")]
         [HttpPost]
         public async Task<ActionResult<Document>> Parse([FromBody]SingleWorkRequest request)
+        {
+            var result = await ProcessSingleRequest(request).ConfigureAwait(false);
+            return Ok(result.Processed);
+        }
+
+        [Route("calculate")]
+        [HttpPost]
+        public async Task<ActionResult<double?>> Calculate([FromBody] SingleWorkRequest request)
+        {
+            var result = await ProcessSingleRequest(request).ConfigureAwait(false);
+            return Ok(result.Processed.Stars);
+        }
+
+        private async Task<ProcessingContext> ProcessSingleRequest(SingleWorkRequest request)
         {
             if (request == null)
             {
@@ -66,8 +91,27 @@ namespace Wikiled.Sentiment.Service.Controllers
                 client.Lexicon = lexiconLoader.GetLexicon(request.Domain);
             }
 
-            var result = await client.Process(documentConverter.Convert(request.Review, request.CleanText)).ConfigureAwait(false);
-            return Ok(result.Processed);
+            var id = GetId(request);
+
+            var result = await cache
+                               .GetOrCreateAsync(id,
+                                                 async entry =>
+                                                 {
+                                                     entry.SlidingExpiration = TimeSpan.FromMinutes(10);
+
+                                                     return await client.Process(
+                                                                            documentConverter.Convert(request.Review, request.CleanText))
+                                                                        .ConfigureAwait(false);
+                                                 })
+                               .ConfigureAwait(false);
+
+            return result;
+        }
+
+        private string GetId(SingleWorkRequest request)
+        {
+            var textId = request.Review.Text.GenerateKey();
+            return $"{request.Domain}:{request.CleanText}:{textId}";
         }
     }
 }
