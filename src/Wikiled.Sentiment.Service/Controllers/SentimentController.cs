@@ -4,6 +4,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Caching.Memory;
+using Wikiled.MachineLearning.Mathematics;
 using Wikiled.Sentiment.Analysis.Pipeline;
 using Wikiled.Sentiment.Analysis.Processing;
 using Wikiled.Sentiment.Api.Request;
@@ -67,10 +68,15 @@ namespace Wikiled.Sentiment.Service.Controllers
 
         [Route("calculate")]
         [HttpPost]
-        public async Task<ActionResult<double?>> Calculate([FromBody] SingleWorkRequest request)
+        public async Task<ActionResult<RatingValue>> Calculate([FromBody] SingleWorkRequest request)
         {
             var result = await ProcessSingleRequest(request).ConfigureAwait(false);
-            return Ok(result.Processed.Stars);
+            var rating = result.Review.CalculateRawRating();
+            var value = new RatingValue();
+            value.Stars = rating.StarsRating;
+            value.Negative = rating.Negative;
+            value.Positive = rating.Positive;
+            return Ok(value);
         }
 
         private async Task<ProcessingContext> ProcessSingleRequest(SingleWorkRequest request)

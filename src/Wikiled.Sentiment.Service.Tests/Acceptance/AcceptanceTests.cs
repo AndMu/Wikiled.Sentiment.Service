@@ -93,6 +93,21 @@ namespace Wikiled.Sentiment.Service.Tests.Acceptance
         }
 
         [Test]
+        public async Task Calculate()
+        {
+            var request = new SingleWorkRequest
+            {
+                Domain = "market",
+                Review = new SingleRequestData { Text = "I like Text" }
+            };
+
+            var result = await basicSentiment.Calculate(request, CancellationToken.None);
+            Assert.AreEqual(5, result.Stars);
+            Assert.AreEqual(0.33, Math.Round(result.Positive, 2));
+            Assert.AreEqual(0, result.Negative);
+        }
+
+        [Test]
         public async Task Measure()
         {
             await client.Connect(streamUri).ConfigureAwait(false);

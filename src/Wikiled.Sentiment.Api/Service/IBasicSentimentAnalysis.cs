@@ -9,6 +9,6 @@ namespace Wikiled.Sentiment.Api.Service
     {
         Task<Document> Measure(SingleWorkRequest request, CancellationToken token);
 
-        Task<double?> Calculate(SingleWorkRequest request, CancellationToken token);
+        Task<RatingValue> Calculate(SingleWorkRequest request, CancellationToken token);
     }
 }
