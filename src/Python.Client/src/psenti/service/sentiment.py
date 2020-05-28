@@ -1,11 +1,10 @@
 import asyncio
 import json
-import threading
 
 import websockets
 
 from ..service.request import ConnectMessage, SentimentMessage, Document, TrainMessage
-from ..helpers.utilities import batch, wrap_async_iter
+from ..helpers.utilities import batch, EventHandler
 from requests import Session
 from ..service import logger
 
@@ -21,22 +20,7 @@ class SentimentConnection(object):
         self.host = f'{host}:{port}'
         self.stream_url = f'ws://{self.host}/stream'
         self.batch_size = 100
-
-    def __enter__(self):
         self._load()
-        self.loop = asyncio.get_event_loop()
-        threading.Thread(target=self.loop.run_forever, daemon=True).start()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.loop.call_soon_threadsafe(self.loop.stop)
-
-    def _load(self):
-        with Session() as session:
-            url = f'http://{self.host}/api/sentiment/version'
-            self.version = session.get(url).content
-            url = f'http://{self.host}/api/sentiment/domains'
-            self.supported_domains = json.loads(session.get(url).content)
 
     def delete_documents(self, name: str):
         logger.info(f'Deleting document [{name}]...')
@@ -60,11 +44,18 @@ class SentimentConnection(object):
                 if result.status_code != 200:
                     raise ConnectionError(result.reason)
 
+    def _load(self):
+        with Session() as session:
+            url = f'http://{self.host}/api/sentiment/version'
+            self.version = session.get(url).content
+            url = f'http://{self.host}/api/sentiment/domains'
+            self.supported_domains = json.loads(session.get(url).content)
+
 
 class SentimentAnalysis(object):
 
     def __init__(self, connection: SentimentConnection, domain: str = None, lexicon: dict = None, clean: bool = False,
-                 model: str = None):
+                 model: str = None, adjust_lexicon=False):
         if domain is not None and domain.lower() not in [x.lower() for x in connection.supported_domains]:
              raise ValueError('Not supported domain:' + domain)
         self.connection = connection
@@ -72,11 +63,11 @@ class SentimentAnalysis(object):
         self.lexicon = lexicon
         self.clean = clean
         self.model = model
+        self.adjust_lexicon = adjust_lexicon
+        self.on_message = EventHandler()
 
     def train(self, name):
-        future = asyncio.run_coroutine_threadsafe(self.train_async(name), self.connection.loop)
-        # Wait for the result:
-        result = future.result()
+        asyncio.run(self.train_async(name))
 
     async def train_async(self, name):
         try:
@@ -104,13 +95,11 @@ class SentimentAnalysis(object):
             logger.error(f'Failed: {str(e)}')
 
     def detect_sentiment_text(self, documents: list):
-        document_pack = [Document(None, item) for item in documents]
-        for document in self.detect_sentiment(document_pack):
-            yield document
+        document_pack = [Document(text=item) for item in documents]
+        self.detect_sentiment(document_pack)
 
     def detect_sentiment(self, documents: list):
-        for document in wrap_async_iter(self.detect_sentiment_async(documents), self.connection.loop):
-            yield document
+        asyncio.run(self.detect_sentiment_async(documents))
 
     async def detect_sentiment_async(self, documents: list):
         logger.info(f'Detecting sentiment in {len(documents)} documents; Domain [{self.domain}]; Cleaning '
@@ -146,16 +135,17 @@ class SentimentAnalysis(object):
                             for document in message['Data']:
                                 document_id = document['Id']
                                 del processed_ids[document_id]
-                                yield document
+                                self.on_message(document)
                             if len(processed_ids) == 0:
                                 break
             logger.info('Completed!')
         except Exception as e:
-            logger.error(f'Failed: {str(e)}')
+            logger.exception(f'Processing failed')
 
     def _create_batch(self, documents):
         message = SentimentMessage()
         message.Request.CleanText = self.clean
+        message.Request.AdjustDomain = self.adjust_lexicon
         if self.lexicon is not None:
             message.Request.Dictionary = self.lexicon
         if self.domain is not None:
@@ -163,5 +153,7 @@ class SentimentAnalysis(object):
         message.Request.Documents = documents
         message.Request.Model = self.model
         return message
+
+
 
 

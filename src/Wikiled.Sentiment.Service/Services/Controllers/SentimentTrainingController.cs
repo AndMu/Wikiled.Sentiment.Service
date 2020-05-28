@@ -57,6 +57,7 @@ namespace Wikiled.Sentiment.Service.Services.Controllers
                 using (var scope = provider.CreateScope())
                 {
                     var container = scope.ServiceProvider.GetService<ISessionContainer>();
+                    container.Context.NGram = 3;
                     var client = container.GetTraining(modelLocation);
                     var converter = scope.ServiceProvider.GetService<IDocumentConverter>();
                     client.Pipeline.ResetMonitor();

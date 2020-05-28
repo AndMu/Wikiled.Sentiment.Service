@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Wikiled.Common.Logging;
 using Wikiled.Sentiment.Analysis.Containers;
+using Wikiled.Sentiment.Analysis.Processing;
 using Wikiled.Sentiment.Api.Request.Messages;
 using Wikiled.Sentiment.Api.Service;
 using Wikiled.Sentiment.Service.Logic;
@@ -76,22 +77,29 @@ namespace Wikiled.Sentiment.Service.Services.Controllers
                 using (Observable.Interval(TimeSpan.FromSeconds(10))
                                  .Subscribe(item => logger.LogInformation(monitor.ToString())))
                 {
-                    ISentimentDataHolder loader = default;
+                    ISentimentDataHolder lexicon = default;
 
                     if (request.Dictionary != null &&
                         request.Dictionary.Count > 0)
                     {
                         logger.LogInformation("Creating custom dictionary with {0} words", request.Dictionary.Count);
 
-                        loader = SentimentDataHolder.Load(request.Dictionary.Select(item =>
+                        lexicon = SentimentDataHolder.Load(request.Dictionary.Select(item =>
                                                                                         new WordSentimentValueData(
                                                                                             item.Key,
                                                                                             new SentimentValueData(item.Value))));
                     }
-                    else if (!string.IsNullOrEmpty(request.Domain))
+
+                    if ((lexicon == null || request.AdjustDomain) &&
+                       !string.IsNullOrEmpty(request.Domain))
                     {
                         logger.LogInformation("Using Domain dictionary [{0}]", request.Domain);
-                        loader = lexiconLoader.GetLexicon(request.Domain);
+                        var previous = lexicon;
+                        lexicon = lexiconLoader.GetLexicon(request.Domain);
+                        if (previous != null)
+                        {
+                            lexicon.Merge(previous);
+                        }
                     }
 
                     string modelLocation = null;
@@ -110,15 +118,16 @@ namespace Wikiled.Sentiment.Service.Services.Controllers
                     using (var scope = provider.CreateScope())
                     {
                         var container = scope.ServiceProvider.GetService<ISessionContainer>();
+                        container.Context.NGram = 3;
 
                         var client = container.GetTesting(modelLocation);
                         var converter = scope.ServiceProvider.GetService<IDocumentConverter>();
                         client.Init();
                         client.Pipeline.ResetMonitor();
 
-                        if (loader != null)
+                        if (lexicon != null)
                         {
-                            client.Lexicon = loader;
+                            client.Lexicon = lexicon;
                         }
 
                         await client.Process(request.Documents.Select(item => converter.Convert(item, request.CleanText))

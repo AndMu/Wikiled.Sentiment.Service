@@ -12,7 +12,6 @@ using Microsoft.AspNetCore.Http;
 using Newtonsoft.Json.Linq;
 using Wikiled.Common.Logging;
 using Wikiled.Common.Utilities.Modules;
-using Wikiled.Common.Utilities.Resources;
 using Wikiled.Sentiment.Analysis.Containers;
 using Wikiled.Sentiment.Api.Request.Messages;
 using Wikiled.Sentiment.Service.Logic;
@@ -21,7 +20,6 @@ using Wikiled.Sentiment.Service.Services;
 using Wikiled.Sentiment.Service.Services.Controllers;
 using Wikiled.Sentiment.Text.MachineLearning;
 using Wikiled.Sentiment.Text.Parser;
-using Wikiled.Sentiment.Text.Resources;
 using Wikiled.Server.Core.Errors;
 using Wikiled.Server.Core.Helpers;
 using Wikiled.Server.Core.Middleware;
@@ -84,14 +82,14 @@ namespace Wikiled.Sentiment.Service
             app.Map("/stream", ws =>
                 {
                     ws.UseWebSockets();
-                    ws.UseMiddleware<WebSocketMiddleware2>();
+                    ws.UseMiddleware<WebSocketMiddleware>();
                     app.UseExceptionHandler(builder => builder.Run(JsonExceptionHandler));
                 }
             );
 
-            // pre-warm
-            provider.GetService<LexiconLoader>();
+            Initialise(provider);
         }
+
 
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
@@ -112,13 +110,14 @@ namespace Wikiled.Sentiment.Service
             services.AddOptions();
 
             // Create the container builder.
-            SetupTestClient(services);
+            SetupSentiment(services);
             SetupOther(services);
             SetupControllers(services);
         }
 
         private void SetupControllers(IServiceCollection services)
         {
+            services.RegisterModule<CommonModule>();
             services.RegisterModule<SocketModule>();
             services.AddSingleton<IController, SentimentAnalysisController>();
             services.AddSingleton<IController, SentimentTrainingController>();
@@ -133,36 +132,24 @@ namespace Wikiled.Sentiment.Service
             builder.AddTransient<IIpResolve, IpResolve>();
         }
 
-        private void SetupTestClient(IServiceCollection builder)
+
+        private void Initialise(IServiceProvider provider)
         {
-            var configuration = new ConfigurationHandler();
-            configuration.SetConfiguration("resources", "resources");
-            configuration.SetConfiguration("lexicons", "lexicons");
-            configuration.StartingLocation = Env.ContentRootPath;
-            var resourcesPath = configuration.ResolvePath("Resources");
-
-            var url = Configuration["sentiment:resources"];
-            var urlLexicons = Configuration["sentiment:lexicons"];
-            var path = configuration.ResolvePath("lexicons");
-
-            var dataDownloader = new DataDownloader(loggerFactory);
-            Task.WhenAll(
-                    dataDownloader.DownloadFile(new Uri(url), resourcesPath),
-                    dataDownloader.DownloadFile(new Uri(urlLexicons), path, true))
-                .Wait();
-
-            logger.LogInformation("Adding Lexicons...");
-            builder.RegisterModule<CommonModule>();
-            SetupSentiment(builder, configuration, path);
+            // pre-warm
+            provider.GetService<LexiconLoader>();
         }
 
-        private static void SetupSentiment(IServiceCollection builder, ConfigurationHandler configuration, string path)
+        private void SetupSentiment(IServiceCollection builder)
         {
             ParallelHelper.Options = new ParallelOptions();
-            ParallelHelper.Options.MaxDegreeOfParallelism = Environment.ProcessorCount > 8 ? Environment.ProcessorCount / 2 : Environment.ProcessorCount;
+            ParallelHelper.Options.MaxDegreeOfParallelism = Math.Max(1, Math.Min(Environment.ProcessorCount / 2, 4));
 
             builder.RegisterModule(new SentimentMainModule());
-            builder.RegisterModule(new SentimentServiceModule(configuration) { Lexicons = path });
+            builder.RegisterModule(
+                new SentimentServiceModule
+                {
+                    LibraryPath = Env.ContentRootPath
+                });
 
             builder.AddSingleton<IDocumentStorage, SimpleDocumentStorage>();
             builder.AddScoped<IDocumentConverter, DocumentConverter>();

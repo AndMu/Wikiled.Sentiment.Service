@@ -1,8 +1,54 @@
-import asyncio, queue
 import logging
-import sys
 
-logger_on = False
+LOG = logging.getLogger(__name__)
+
+
+class EventHandler(list):
+    """Event subscription.
+
+    A list of callable objects. Calling an instance of this will cause a
+    call to each item in the list in ascending order by index.
+
+    Example Usage:
+    >>> def f(x):
+    ...     print 'f(%s)' % x
+    >>> def g(x):
+    ...     print 'g(%s)' % x
+    >>> e = EventHandler()
+    >>> e()
+    >>> e.append(f)
+    >>> e(123)
+    f(123)
+    >>> e.remove(f)
+    >>> e()
+    >>> e += (f, g)
+    >>> e(10)
+    f(10)
+    g(10)
+    >>> del e[0]
+    >>> e(2)
+    g(2)
+
+    """
+
+    def __init__(self):
+        self.is_safe = False
+
+    def __call__(self, *args, **kwargs):
+        for f in self:
+            try:
+                f(*args, **kwargs)
+            except:
+                LOG.exception('Event handling')
+                if not self.is_safe:
+                    raise
+
+    def __repr__(self):
+        return "Event(%s)" % list.__repr__(self)
+
+    def subscribe(self, method):
+        if method not in self:
+            self.append(method)
 
 
 def batch(iterable, n=1):
@@ -10,52 +56,3 @@ def batch(iterable, n=1):
     for ndx in range(0, l, n):
         yield iterable[ndx:min(ndx + n, l)]
 
-
-def wrap_async_iter(ait, loop):
-    # create an asyncio loop that runs in the background to
-    # serve our asyncio needs
-
-    """Wrap an asynchronous iterator into a synchronous one"""
-    q = queue.Queue()
-    _END = object()
-
-    def yield_queue_items():
-        while True:
-            next_item = q.get()
-            if next_item is _END:
-                break
-            yield next_item
-        # After observing _END we know the aiter_to_queue coroutine has
-        # completed.  Invoke result() for side effect - if an exception
-        # was raised by the async iterator, it will be propagated here.
-        async_result.result()
-
-    async def aiter_to_queue():
-        try:
-            async for item in ait:
-                q.put(item)
-        finally:
-            q.put(_END)
-
-    async_result = asyncio.run_coroutine_threadsafe(aiter_to_queue(), loop)
-    return yield_queue_items()
-
-
-def add_logger(logger, level=logging.INFO):
-    global logger_on
-    if logger_on:
-        return
-
-    logger_on = True
-    logger.setLevel(level)
-
-    handler = logging.StreamHandler(sys.stderr)
-    handler.setLevel(level)
-
-    # create formatter
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-    # add formatter to ch
-    handler.setFormatter(formatter)
-
-    logger.handlers = [handler]

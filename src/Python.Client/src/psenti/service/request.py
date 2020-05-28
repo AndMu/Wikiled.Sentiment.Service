@@ -1,9 +1,9 @@
+from datetime import datetime
 import socket
 import uuid
 from abc import ABC
 
 import jsonpickle
-# from .. import version
 
 
 class Message(ABC):
@@ -38,15 +38,18 @@ class WorkRequest(object):
         self.CleanText = True
         self.Domain = None
         self.Model = None
+        self.AdjustDomain = False
 
 
 class Document(object):
-    def __init__(self, document_id: str, text: str):
+    def __init__(self, text: str, document_id: str = None, author: str = None, date: datetime = None):
         if document_id is None:
             document_id = uuid.uuid4()
         self.Id = str(document_id)
-        self.Date = None
-        self.Author = None
+        if date is None:
+            date = datetime.now()
+        self.Date = date.isoformat()
+        self.Author = author
         self.Text = text
         self.IsPositive = None
 
@@ -57,4 +60,6 @@ class TrainMessage(Message):
         self.CleanText = True
         self.Domain = None
         super().__init__()
+
+
 

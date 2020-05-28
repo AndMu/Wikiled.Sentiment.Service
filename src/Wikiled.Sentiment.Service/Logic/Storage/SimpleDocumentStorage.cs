@@ -3,7 +3,6 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Threading.Tasks;
 using Wikiled.Common.Extensions;
@@ -88,14 +87,13 @@ namespace Wikiled.Sentiment.Service.Logic.Storage
         public IObservable<SingleRequestData> Load(string client, string name, bool classType)
         {
             return Observable.Create<SingleRequestData>(
-                          (observer) =>
+                          async observer =>
                           {
-                              ReadFiles(client, name, classType, observer);
-                              return Disposable.Empty;
+                              await ReadFiles(client, name, classType, observer).ConfigureAwait(false);
                           });
         }
 
-        private void ReadFiles(string client, string name, bool classType, IObserver<SingleRequestData> observer)
+        private async Task ReadFiles(string client, string name, bool classType, IObserver<SingleRequestData> observer)
         {
             var folder = GetDocumentClassFolder(client, name, classType);
             if (!Directory.Exists(folder))
@@ -103,12 +101,12 @@ namespace Wikiled.Sentiment.Service.Logic.Storage
                 throw new Exception("Documents not found");
             }
 
-            var files = Directory.GetFiles(GetDocumentClassFolder(client, name, classType), "*.zip");
+            var files = Directory.EnumerateFiles(GetDocumentClassFolder(client, name, classType), "*.zip");
             foreach (var file in files)
             {
                 try
                 {
-                    var result = serializer.DeserializeJsonZip<SingleRequestData>(file);
+                    var result = await serializer.DeserializeJsonZip<SingleRequestData>(file).ConfigureAwait(false);
                     observer.OnNext(result);
                 }
                 catch (Exception e)

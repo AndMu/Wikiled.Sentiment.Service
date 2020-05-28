@@ -13,6 +13,8 @@ namespace Wikiled.Sentiment.Api.Request
         [Required]
         public SingleRequestData[] Documents { get; set; }
 
+        public bool AdjustDomain { get; set; }
+
         public bool CleanText { get; set; }
 
         public string Domain { get; set; }
