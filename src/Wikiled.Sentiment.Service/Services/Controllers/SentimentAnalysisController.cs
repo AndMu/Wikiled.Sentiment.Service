@@ -119,6 +119,7 @@ namespace Wikiled.Sentiment.Service.Services.Controllers
                     {
                         var container = scope.ServiceProvider.GetService<ISessionContainer>();
                         container.Context.NGram = 3;
+                        container.Context.ExtractAttributes = request.Emotions;
 
                         var client = container.GetTesting(modelLocation);
                         var converter = scope.ServiceProvider.GetService<IDocumentConverter>();

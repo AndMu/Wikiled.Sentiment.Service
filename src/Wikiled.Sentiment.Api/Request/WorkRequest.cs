@@ -17,6 +17,8 @@ namespace Wikiled.Sentiment.Api.Request
 
         public bool CleanText { get; set; }
 
+        public bool Emotions { get; set; }
+
         public string Domain { get; set; }
 
         public string Model { get; set; }

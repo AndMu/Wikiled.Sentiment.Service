@@ -39,6 +39,7 @@ class WorkRequest(object):
         self.Domain = None
         self.Model = None
         self.AdjustDomain = False
+        self.Emotions = False
 
 
 class Document(object):

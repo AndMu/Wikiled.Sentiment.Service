@@ -55,7 +55,7 @@ class SentimentConnection(object):
 class SentimentAnalysis(object):
 
     def __init__(self, connection: SentimentConnection, domain: str = None, lexicon: dict = None, clean: bool = False,
-                 model: str = None, adjust_lexicon=False):
+                 model: str = None, adjust_lexicon=False, extract_emotions=False):
         if domain is not None and domain.lower() not in [x.lower() for x in connection.supported_domains]:
              raise ValueError('Not supported domain:' + domain)
         self.connection = connection
@@ -64,6 +64,7 @@ class SentimentAnalysis(object):
         self.clean = clean
         self.model = model
         self.adjust_lexicon = adjust_lexicon
+        self.extract_emotions = extract_emotions
         self.on_message = EventHandler()
 
     def train(self, name):
@@ -146,6 +147,7 @@ class SentimentAnalysis(object):
         message = SentimentMessage()
         message.Request.CleanText = self.clean
         message.Request.AdjustDomain = self.adjust_lexicon
+        message.Request.Emotions = self.extract_emotions
         if self.lexicon is not None:
             message.Request.Dictionary = self.lexicon
         if self.domain is not None:
