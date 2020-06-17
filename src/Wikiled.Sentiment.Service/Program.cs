@@ -1,20 +1,24 @@
 ﻿using System;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Logging;
 using NLog.Web;
+using Wikiled.Server.Core.Helpers;
 
 namespace Wikiled.Sentiment.Service
 {
     public static class Program
     {
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
             // NLog: setup the logger first to catch all errors
             var logger = NLogBuilder.ConfigureNLog("nlog.config").GetCurrentClassLogger();
             try
             {
-                BuildWebHost(args).Run();
+                var host = BuildWebHost(args);
+                await host.InitAsync().ConfigureAwait(false);
+                await host.RunAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {

@@ -18,6 +18,7 @@ using Wikiled.Sentiment.Service.Logic;
 using Wikiled.Sentiment.Service.Logic.Storage;
 using Wikiled.Sentiment.Service.Services;
 using Wikiled.Sentiment.Service.Services.Controllers;
+using Wikiled.Sentiment.Text.Config;
 using Wikiled.Sentiment.Text.MachineLearning;
 using Wikiled.Sentiment.Text.Parser;
 using Wikiled.Server.Core.Errors;
@@ -34,8 +35,6 @@ namespace Wikiled.Sentiment.Service
     {
         private readonly ILogger<Startup> logger;
 
-        private readonly ILoggerFactory loggerFactory;
-
         public Startup(ILoggerFactory loggerFactory, IWebHostEnvironment env)
         {
             ApplicationLogging.LoggerFactory = loggerFactory;
@@ -45,7 +44,6 @@ namespace Wikiled.Sentiment.Service
                 .AddJsonFile($"appsettings.{env.EnvironmentName}.json", optional: true)
                 .AddEnvironmentVariables();
             Configuration = builder.Build();
-            this.loggerFactory = loggerFactory;
             Env = env;
             logger = loggerFactory.CreateLogger<Startup>();
             Configuration.ChangeNlog();
@@ -122,6 +120,7 @@ namespace Wikiled.Sentiment.Service
             services.AddSingleton<IController, SentimentAnalysisController>();
             services.AddSingleton<IController, SentimentTrainingController>();
             services.RegisterConfiguration<ServiceSettings>(Configuration.GetSection("ServiceSettings"));
+            services.RegisterConfiguration<ILexiconConfig>(Configuration.GetSection("lexicon"), new LexiconConfig());
             services.AddSingleton<Message, SentimentMessage>();
             services.AddSingleton<Message, TrainMessage>();
             services.AddSingleton<Message, CompletedMessage>();
@@ -131,7 +130,6 @@ namespace Wikiled.Sentiment.Service
         {
             builder.AddTransient<IIpResolve, IpResolve>();
         }
-
 
         private void Initialise(IServiceProvider provider)
         {
@@ -144,16 +142,12 @@ namespace Wikiled.Sentiment.Service
             ParallelHelper.Options = new ParallelOptions();
             ParallelHelper.Options.MaxDegreeOfParallelism = Math.Max(1, Math.Min(Environment.ProcessorCount / 2, 4));
 
-            builder.RegisterModule(new SentimentMainModule());
-            builder.RegisterModule(
-                new SentimentServiceModule
-                {
-                    LibraryPath = Env.ContentRootPath
-                });
+            builder.RegisterModule<SentimentMainModule>();
+            builder.RegisterModule<SentimentServiceModule>();
 
             builder.AddSingleton<IDocumentStorage, SimpleDocumentStorage>();
             builder.AddScoped<IDocumentConverter, DocumentConverter>();
-            builder.AddHostedService<WarmupService>();
+            builder.AddAsyncInitializer<InitialisationService>();
         }
 
         private static Task JsonExceptionHandler(HttpContext context)
